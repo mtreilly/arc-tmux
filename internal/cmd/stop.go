@@ -36,7 +36,7 @@ func newStopCmd() *cobra.Command {
 		Example: `  arc-tmux stop --pane=fe:2.0
   arc-tmux stop --pane=@current --timeout 20 --idle 3
   arc-tmux stop --pane=@current --kill=false`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
@@ -89,29 +89,29 @@ func newStopCmd() *cobra.Command {
 				return retErr
 			case outputOpts.Is(output.OutputYAML):
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				if err := enc.Encode(result); err != nil {
 					return err
 				}
 				return retErr
 			case outputOpts.Is(output.OutputQuiet):
 				if result.Killed {
-					fmt.Fprintln(out, "killed")
+					_, _ = fmt.Fprintln(out, "killed")
 					return retErr
 				}
-				fmt.Fprintln(out, "interrupted")
+				_, _ = fmt.Fprintln(out, "interrupted")
 				return retErr
 			}
 
 			if result.Killed {
-				fmt.Fprintf(out, "Pane %s interrupted and killed after timeout.\n", target)
+				_, _ = fmt.Fprintf(out, "Pane %s interrupted and killed after timeout.\n", target)
 				return retErr
 			}
 			if result.TimedOut {
-				fmt.Fprintf(out, "Pane %s interrupted but did not become idle within timeout.\n", target)
+				_, _ = fmt.Fprintf(out, "Pane %s interrupted but did not become idle within timeout.\n", target)
 				return retErr
 			}
-			fmt.Fprintf(out, "Pane %s interrupted.\n", target)
+			_, _ = fmt.Fprintf(out, "Pane %s interrupted.\n", target)
 			return retErr
 		},
 	}

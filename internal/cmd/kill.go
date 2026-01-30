@@ -32,7 +32,7 @@ func newKillCmd() *cobra.Command {
 
   # Kill without prompting (useful in scripts)
   arc-tmux kill --pane=fe:2.0 --yes`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
@@ -54,7 +54,7 @@ func newKillCmd() *cobra.Command {
 					return err
 				}
 				if !confirmed {
-					fmt.Fprintln(cmd.OutOrStdout(), "Aborted. No panes were killed.")
+					_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Aborted. No panes were killed.")
 					return nil
 				}
 			}
@@ -85,7 +85,9 @@ func confirmPrompt(cmd *cobra.Command, prompt string) (bool, error) {
 
 	reader := bufio.NewReader(in)
 	for {
-		fmt.Fprint(cmd.OutOrStdout(), prompt)
+		if _, err := fmt.Fprint(cmd.OutOrStdout(), prompt); err != nil {
+			return false, err
+		}
 		response, err := reader.ReadString('\n')
 		if err != nil {
 			return false, err
@@ -97,7 +99,7 @@ func confirmPrompt(cmd *cobra.Command, prompt string) (bool, error) {
 		case "", "n", "no":
 			return false, nil
 		default:
-			fmt.Fprintln(cmd.OutOrStdout(), "Please answer 'y' or 'n'.")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Please answer 'y' or 'n'.")
 		}
 	}
 }
@@ -117,15 +119,15 @@ func writeKillResult(cmd *cobra.Command, outputOpts output.OutputOptions, result
 		return enc.Encode(result)
 	case outputOpts.Is(output.OutputYAML):
 		enc := yaml.NewEncoder(out)
-		defer enc.Close()
+		defer func() { _ = enc.Close() }()
 		return enc.Encode(result)
 	case outputOpts.Is(output.OutputQuiet):
 		return nil
 	}
 	if result.DryRun {
-		fmt.Fprintf(out, "%s %s\n", message, result.PaneID)
+		_, _ = fmt.Fprintf(out, "%s %s\n", message, result.PaneID)
 		return nil
 	}
-	fmt.Fprintf(out, "%s %s\n", message, result.PaneID)
+	_, _ = fmt.Fprintf(out, "%s %s\n", message, result.PaneID)
 	return nil
 }

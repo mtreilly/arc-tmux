@@ -105,7 +105,7 @@ func newRunCmd() *cobra.Command {
 					result.WaitError = waitErr.Error()
 				}
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				if err := enc.Encode(result); err != nil {
 					return err
 				}
@@ -113,17 +113,19 @@ func newRunCmd() *cobra.Command {
 
 			case outputOpts.Is(output.OutputQuiet):
 				if exitCode && codePtr != nil {
-					fmt.Fprintln(out, *codePtr)
+					_, _ = fmt.Fprintln(out, *codePtr)
 				}
 				return combineRunErrors(waitErr, exitPropagate, codePtr, found)
 			}
 
-			fmt.Fprint(out, capture)
+			if _, err := fmt.Fprint(out, capture); err != nil {
+				return err
+			}
 			if exitCode {
 				if codePtr != nil {
-					fmt.Fprintf(out, "\nExit code: %d\n", *codePtr)
+					_, _ = fmt.Fprintf(out, "\nExit code: %d\n", *codePtr)
 				} else {
-					fmt.Fprintln(out, "\nExit code: unknown")
+					_, _ = fmt.Fprintln(out, "\nExit code: unknown")
 				}
 			}
 			return combineRunErrors(waitErr, exitPropagate, codePtr, found)

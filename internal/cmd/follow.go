@@ -34,7 +34,7 @@ func newFollowCmd() *cobra.Command {
 		Example: `  arc-tmux follow --pane=fe:2.0
   arc-tmux follow --pane=fe:2.0 --output json
   arc-tmux follow --pane=fe:2.0 --from-start`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
@@ -61,7 +61,7 @@ func newFollowCmd() *cobra.Command {
 			}
 			if outputOpts.Is(output.OutputYAML) {
 				yamlEnc = yaml.NewEncoder(out)
-				defer yamlEnc.Close()
+				defer func() { _ = yamlEnc.Close() }()
 			}
 
 			var prev []string
@@ -151,11 +151,11 @@ func diffLines(prev []string, curr []string) []string {
 	return curr
 }
 
-func tailLines(lines []string, max int) []string {
-	if max <= 0 || len(lines) <= max {
+func tailLines(lines []string, limit int) []string {
+	if limit <= 0 || len(lines) <= limit {
 		return lines
 	}
-	return lines[len(lines)-max:]
+	return lines[len(lines)-limit:]
 }
 
 func equalSlice(a []string, b []string) bool {

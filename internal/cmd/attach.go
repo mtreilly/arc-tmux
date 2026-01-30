@@ -79,7 +79,7 @@ func newCleanupCmd() *cobra.Command {
 		Long:  "Force-kill the managed tmux session (defaults to 'arc-tmux').",
 		Example: `  arc-tmux cleanup
   arc-tmux cleanup --session fe --yes`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
@@ -97,7 +97,7 @@ func newCleanupCmd() *cobra.Command {
 					return err
 				}
 				if !ok {
-					fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
+					_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Aborted.")
 					return nil
 				}
 			}
@@ -167,13 +167,13 @@ Commands are executed via "sh -lc", so full shell strings are supported.`,
 				result := launchResult{PaneID: paneID}
 				fillLaunchResult(&result, paneID)
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				return enc.Encode(result)
 			case outputOpts.Is(output.OutputQuiet):
-				fmt.Fprintln(out, paneID)
+				_, _ = fmt.Fprintln(out, paneID)
 				return nil
 			}
-			fmt.Fprintln(out, paneID)
+			_, _ = fmt.Fprintln(out, paneID)
 			return nil
 		},
 	}
@@ -195,7 +195,7 @@ func newWindowsCmd() *cobra.Command {
 		Long:  "List windows for the current session (inside tmux) or managed session (outside).",
 		Example: `  arc-tmux windows
   arc-tmux windows --session fe`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
@@ -221,11 +221,11 @@ func newWindowsCmd() *cobra.Command {
 			wins, err := tmux.ListWindows(session)
 			if err != nil {
 				if errors.Is(err, tmux.ErrNoTmuxServer) {
-					fmt.Fprintln(cmd.OutOrStdout(), "No tmux server is running.")
+					_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No tmux server is running.")
 					return nil
 				}
 				if errors.Is(err, tmux.ErrSessionNotFound) {
-					fmt.Fprintf(cmd.OutOrStdout(), "Tmux session %q is not running.\n", session)
+					_, _ = fmt.Fprintf(cmd.OutOrStdout(), "Tmux session %q is not running.\n", session)
 					return nil
 				}
 				return err
@@ -239,17 +239,17 @@ func newWindowsCmd() *cobra.Command {
 				return enc.Encode(wins)
 			case outputOpts.Is(output.OutputYAML):
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				return enc.Encode(wins)
 			case outputOpts.Is(output.OutputQuiet):
 				for _, w := range wins {
-					fmt.Fprintf(out, "%s:%d\n", w.Session, w.WindowIndex)
+					_, _ = fmt.Fprintf(out, "%s:%d\n", w.Session, w.WindowIndex)
 				}
 				return nil
 			}
 
 			if len(wins) == 0 {
-				fmt.Fprintln(out, "No windows found")
+				_, _ = fmt.Fprintln(out, "No windows found")
 				return nil
 			}
 
@@ -265,7 +265,7 @@ func newWindowsCmd() *cobra.Command {
 			sort.Strings(sessions)
 
 			for _, s := range sessions {
-				fmt.Fprintf(out, "%s:\n", s)
+				_, _ = fmt.Fprintf(out, "%s:\n", s)
 				ws := bySess[s]
 				sort.Slice(ws, func(i, j int) bool { return ws[i].WindowIndex < ws[j].WindowIndex })
 				for _, w := range ws {
@@ -273,7 +273,7 @@ func newWindowsCmd() *cobra.Command {
 					if w.Active {
 						status = "active"
 					}
-					fmt.Fprintf(out, "  %d  (%s)  %s\n", w.WindowIndex, status, w.Name)
+					_, _ = fmt.Fprintf(out, "  %d  (%s)  %s\n", w.WindowIndex, status, w.Name)
 				}
 			}
 			return nil
@@ -308,17 +308,17 @@ func writeCleanupResult(cmd *cobra.Command, outputOpts output.OutputOptions, res
 		return enc.Encode(result)
 	case outputOpts.Is(output.OutputYAML):
 		enc := yaml.NewEncoder(out)
-		defer enc.Close()
+		defer func() { _ = enc.Close() }()
 		return enc.Encode(result)
 	case outputOpts.Is(output.OutputQuiet):
 		return nil
 	}
 	if result.DryRun {
-		fmt.Fprintf(out, "Dry run: would kill tmux session %q\n", result.Session)
+		_, _ = fmt.Fprintf(out, "Dry run: would kill tmux session %q\n", result.Session)
 		return nil
 	}
 	if result.Killed {
-		fmt.Fprintf(out, "Killed tmux session %q\n", result.Session)
+		_, _ = fmt.Fprintf(out, "Killed tmux session %q\n", result.Session)
 		return nil
 	}
 	return nil
@@ -337,13 +337,13 @@ func writeAttachResult(cmd *cobra.Command, outputOpts output.OutputOptions, resu
 		return enc.Encode(result)
 	case outputOpts.Is(output.OutputYAML):
 		enc := yaml.NewEncoder(out)
-		defer enc.Close()
+		defer func() { _ = enc.Close() }()
 		return enc.Encode(result)
 	case outputOpts.Is(output.OutputQuiet):
-		fmt.Fprintln(out, result.Session)
+		_, _ = fmt.Fprintln(out, result.Session)
 		return nil
 	}
-	fmt.Fprintf(out, "Attach session %q\n", result.Session)
+	_, _ = fmt.Fprintf(out, "Attach session %q\n", result.Session)
 	return nil
 }
 

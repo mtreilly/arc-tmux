@@ -50,7 +50,7 @@ func newPanesCmd() *cobra.Command {
   arc-tmux panes --command node --path /srv
   arc-tmux panes --command ndsr --fuzzy
   arc-tmux panes --output json`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
@@ -64,7 +64,7 @@ func newPanesCmd() *cobra.Command {
 			panes, err := tmux.ListPanesDetailed()
 			if err != nil {
 				if err == tmux.ErrNoTmuxServer {
-					fmt.Fprintln(cmd.OutOrStdout(), "No tmux server is running.")
+					_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No tmux server is running.")
 					return nil
 				}
 				return err
@@ -109,22 +109,22 @@ func newPanesCmd() *cobra.Command {
 
 			case outputOpts.Is(output.OutputYAML):
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				return enc.Encode(items)
 
 			case outputOpts.Is(output.OutputQuiet):
 				for _, p := range items {
-					fmt.Fprintln(out, p.FormattedID)
+					_, _ = fmt.Fprintln(out, p.FormattedID)
 				}
 				return nil
 			}
 
 			if len(items) == 0 {
-				fmt.Fprintln(out, "No tmux panes found.")
+				_, _ = fmt.Fprintln(out, "No tmux panes found.")
 				return nil
 			}
 
-			fmt.Fprintln(out, "Panes:")
+			_, _ = fmt.Fprintln(out, "Panes:")
 			for _, p := range items {
 				active := "inactive"
 				if p.Active {
@@ -138,7 +138,7 @@ func newPanesCmd() *cobra.Command {
 				if strings.TrimSpace(p.WindowName) != "" {
 					windowLabel = fmt.Sprintf("%s (%s)", windowLabel, p.WindowName)
 				}
-				fmt.Fprintf(out, "  %s  %s  pane=%d  pid=%d  cmd=%s  path=%s  title=%s  win=%s (%s)  activity=%s\n",
+				_, _ = fmt.Fprintf(out, "  %s  %s  pane=%d  pid=%d  cmd=%s  path=%s  title=%s  win=%s (%s)  activity=%s\n",
 					p.FormattedID,
 					active,
 					p.PaneIndex,

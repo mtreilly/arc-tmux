@@ -33,7 +33,7 @@ func newSignalCmd() *cobra.Command {
 		Long:  "Send a signal to the process running in a tmux pane.",
 		Example: `  arc-tmux signal --pane=fe:2.0 --signal TERM
   arc-tmux signal --pane=@current --signal KILL`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
@@ -71,13 +71,13 @@ func newSignalCmd() *cobra.Command {
 				return enc.Encode(result)
 			case outputOpts.Is(output.OutputYAML):
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				return enc.Encode(result)
 			case outputOpts.Is(output.OutputQuiet):
-				fmt.Fprintln(out, result.PID)
+				_, _ = fmt.Fprintln(out, result.PID)
 				return nil
 			}
-			fmt.Fprintf(out, "Sent %s to pid %d (%s)\n", name, pane.PID, target)
+			_, _ = fmt.Fprintf(out, "Sent %s to pid %d (%s)\n", name, pane.PID, target)
 			return nil
 		},
 	}

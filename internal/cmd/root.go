@@ -44,7 +44,7 @@ Common subcommands:
   arc-tmux wait --pane=fe:2.0 --idle 2s --timeout 60s`,
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
 	}

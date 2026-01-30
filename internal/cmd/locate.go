@@ -76,7 +76,7 @@ func newLocateCmd() *cobra.Command {
 			panes, err := tmux.ListPanesDetailed()
 			if err != nil {
 				if err == tmux.ErrNoTmuxServer {
-					fmt.Fprintln(cmd.OutOrStdout(), "No tmux server is running.")
+					_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No tmux server is running.")
 					return nil
 				}
 				return err
@@ -115,24 +115,24 @@ func newLocateCmd() *cobra.Command {
 
 			case outputOpts.Is(output.OutputYAML):
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				return enc.Encode(items)
 
 			case outputOpts.Is(output.OutputQuiet):
 				for _, p := range items {
-					fmt.Fprintln(out, p.FormattedID)
+					_, _ = fmt.Fprintln(out, p.FormattedID)
 				}
 				return nil
 			}
 
 			if len(items) == 0 {
-				fmt.Fprintln(out, "No matching panes found.")
+				_, _ = fmt.Fprintln(out, "No matching panes found.")
 				return nil
 			}
 
-			fmt.Fprintln(out, "Matching panes:")
+			_, _ = fmt.Fprintln(out, "Matching panes:")
 			for _, p := range items {
-				fmt.Fprintf(out, "  %s  cmd=%s  title=%s  path=%s\n", p.FormattedID, p.Command, p.Title, p.Path)
+				_, _ = fmt.Fprintf(out, "  %s  cmd=%s  title=%s  path=%s\n", p.FormattedID, p.Command, p.Title, p.Path)
 			}
 			return nil
 		},
@@ -149,7 +149,7 @@ func newLocateCmd() *cobra.Command {
 }
 
 func locateMatches(p tmux.PaneDetails, field string, query string, re *regexp.Regexp, fuzzy bool) bool {
-	fields := []string{}
+	var fields []string
 	switch field {
 	case "command":
 		fields = []string{p.Command}

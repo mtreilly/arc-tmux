@@ -22,7 +22,7 @@ func newInterruptCmd() *cobra.Command {
 		Short:   "Send Ctrl+C to a pane",
 		Long:    "Gracefully stop the foreground program in a pane by sending Ctrl+C.",
 		Example: `  arc-tmux interrupt --pane=fe:api.0`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
@@ -57,7 +57,7 @@ func newEscapeCmd() *cobra.Command {
 		Short:   "Send Escape key to a pane",
 		Long:    "Inject a literal Escape keystroke.",
 		Example: `  arc-tmux escape --pane=fe:2.0`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
@@ -97,11 +97,11 @@ func writeActionResult(cmd *cobra.Command, outputOpts output.OutputOptions, resu
 		return enc.Encode(result)
 	case outputOpts.Is(output.OutputYAML):
 		enc := yaml.NewEncoder(out)
-		defer enc.Close()
+		defer func() { _ = enc.Close() }()
 		return enc.Encode(result)
 	case outputOpts.Is(output.OutputQuiet):
 		return nil
 	}
-	fmt.Fprintln(out, message)
+	_, _ = fmt.Fprintln(out, message)
 	return nil
 }

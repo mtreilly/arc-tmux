@@ -64,12 +64,12 @@ func newSendCmd() *cobra.Command {
 				return enc.Encode(result)
 			case outputOpts.Is(output.OutputYAML):
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				return enc.Encode(result)
 			case outputOpts.Is(output.OutputQuiet):
 				return nil
 			}
-			fmt.Fprintln(out, "Text sent")
+			_, _ = fmt.Fprintln(out, "Text sent")
 			return nil
 		},
 	}
