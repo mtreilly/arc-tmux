@@ -173,11 +173,11 @@ func diffLines(prev []string, curr []string) []string {
 	if len(prev) == 0 {
 		return curr
 	}
-	max := len(prev)
-	if len(curr) < max {
-		max = len(curr)
+	maxOverlap := len(prev)
+	if len(curr) < maxOverlap {
+		maxOverlap = len(curr)
 	}
-	for k := max; k > 0; k-- {
+	for k := maxOverlap; k > 0; k-- {
 		if equalSlice(prev[len(prev)-k:], curr[:k]) {
 			return curr[k:]
 		}
