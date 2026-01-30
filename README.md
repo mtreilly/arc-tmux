@@ -10,6 +10,9 @@ arc-tmux panes --session dev --window 2
 arc-tmux inspect --pane=dev:2.0
 arc-tmux follow --pane=dev:2.0 --lines 200
 arc-tmux locate --field command node
+arc-tmux monitor --pane=dev:2.0 --output json
+arc-tmux signal --pane=dev:2.0 --signal TERM
+arc-tmux stop --pane=dev:2.0 --timeout 20
 ```
 
 ## Output formats
@@ -96,6 +99,19 @@ Streams NDJSON events (one object per line):
 
 Use `--from-start` to emit the full buffer first. `--lines` controls the capture size (0 for full).
 
+### run --output json
+
+When `--exit-code` is enabled, `run` emits a sentinel exit code and parses it into structured output.
+
+```json
+{
+  "output": "tests passed\n",
+  "exit_code": 0,
+  "exit_found": true,
+  "wait_error": ""
+}
+```
+
 ### locate --output json
 
 Same shape as `panes --output json`, filtered by query and field.
@@ -119,6 +135,21 @@ Create and use pane aliases for quick targeting:
 arc-tmux alias set api --pane=@current
 arc-tmux send "npm test" --pane=@api
 arc-tmux alias list
+```
+
+### Monitor
+
+Monitor a pane once for idle status and output hash:
+
+```
+arc-tmux monitor --pane=@current --idle 5 --lines 200 --output json
+```
+
+### Stop and signal
+
+```
+arc-tmux stop --pane=@current --timeout 20 --idle 3
+arc-tmux signal --pane=@current --signal TERM
 ```
 
 ## Agent workflows

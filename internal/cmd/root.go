@@ -27,6 +27,9 @@ Common subcommands:
   capture   Capture pane output
   follow    Stream pane output
   run       Send -> wait for idle -> capture
+  monitor   Snapshot pane activity/output hash
+  signal    Send a signal to a pane PID
+  stop      Interrupt then kill on timeout
   wait      Block until a pane quiets down
   kill      Safely kill a pane
   attach    Attach to a session
@@ -55,6 +58,9 @@ Common subcommands:
 		newCaptureCmd(),
 		newWaitCmd(),
 		newRunCmd(),
+		newMonitorCmd(),
+		newSignalCmd(),
+		newStopCmd(),
 		newInterruptCmd(),
 		newEscapeCmd(),
 		newKillCmd(),
