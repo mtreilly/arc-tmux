@@ -137,6 +137,28 @@ arc-tmux send "npm test" --pane=@api
 arc-tmux alias list
 ```
 
+### Recipes
+
+```
+arc-tmux recipes
+arc-tmux recipes --output json
+```
+
+## Error codes
+
+When commands fail, errors include a stable code prefix for machine parsing (e.g. `ERR_INVALID_PANE: ...`).
+
+Common codes:
+
+- `ERR_PANE_REQUIRED`
+- `ERR_INVALID_PANE`
+- `ERR_UNKNOWN_SELECTOR`
+- `ERR_NO_ACTIVE_PANE`
+- `ERR_NO_CURRENT_PANE`
+- `ERR_NOT_IN_TMUX`
+- `ERR_SIGNAL_UNSUPPORTED`
+- `ERR_COMMAND_EXIT`
+
 ### Monitor
 
 Monitor a pane once for idle status and output hash:

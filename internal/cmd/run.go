@@ -46,7 +46,7 @@ func newRunCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := tmux.ValidateTarget(target); err != nil {
+			if err := validatePaneTarget(target); err != nil {
 				return err
 			}
 
@@ -202,7 +202,7 @@ func combineRunErrors(waitErr error, exitPropagate bool, code *int, found bool) 
 		return waitErr
 	}
 	if exitPropagate && found && code != nil && *code != 0 {
-		return fmt.Errorf("command exited with %d", *code)
+		return newCodedError(errCommandExit, fmt.Sprintf("command exited with %d", *code), nil)
 	}
 	return nil
 }

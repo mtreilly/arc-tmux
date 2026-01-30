@@ -4,7 +4,6 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -15,7 +14,7 @@ import (
 func resolvePaneTarget(raw string) (string, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
-		return "", fmt.Errorf("--pane is required")
+		return "", newCodedError(errPaneRequired, "--pane is required", nil)
 	}
 	if !strings.HasPrefix(trimmed, "@") {
 		return trimmed, nil
@@ -27,7 +26,7 @@ func resolvePaneTarget(raw string) (string, error) {
 			return "", err
 		}
 		if strings.TrimSpace(id) == "" {
-			return "", errors.New("no current pane found")
+			return "", newCodedError(errNoCurrentPane, "no current pane found", nil)
 		}
 		return id, nil
 	case "@active":
@@ -42,7 +41,7 @@ func resolvePaneTarget(raw string) (string, error) {
 			}
 		}
 		if len(active) == 0 {
-			return "", errors.New("no active pane found")
+			return "", newCodedError(errNoActivePane, "no active pane found", nil)
 		}
 		sort.Strings(active)
 		return active[0], nil
@@ -58,7 +57,7 @@ func resolvePaneTarget(raw string) (string, error) {
 		}
 		target, ok := aliases[name]
 		if !ok {
-			return "", fmt.Errorf("unknown pane selector: %s", trimmed)
+			return "", newCodedError(errUnknownSelector, fmt.Sprintf("unknown pane selector: %s", trimmed), nil)
 		}
 		return target, nil
 	}
@@ -75,7 +74,7 @@ func resolveSessionTarget(raw string) (string, error) {
 	switch trimmed {
 	case "@current":
 		if !tmux.InTmux() {
-			return "", errors.New("not inside tmux; @current requires a tmux client")
+			return "", newCodedError(errNoTmuxClient, "not inside tmux; @current requires a tmux client", nil)
 		}
 		sess, _, _, _, err := tmux.CurrentLocation()
 		if err != nil {
@@ -85,6 +84,13 @@ func resolveSessionTarget(raw string) (string, error) {
 	case "@managed":
 		return resolveManagedSession(), nil
 	default:
-		return "", fmt.Errorf("unknown session selector: %s", trimmed)
+		return "", newCodedError(errUnknownSelector, fmt.Sprintf("unknown session selector: %s", trimmed), nil)
 	}
+}
+
+func validatePaneTarget(target string) error {
+	if err := tmux.ValidateTarget(target); err != nil {
+		return newCodedError(errInvalidPane, err.Error(), err)
+	}
+	return nil
 }

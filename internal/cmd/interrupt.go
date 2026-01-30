@@ -30,7 +30,7 @@ func newInterruptCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := tmux.ValidateTarget(target); err != nil {
+			if err := validatePaneTarget(target); err != nil {
 				return err
 			}
 			if err := tmux.Interrupt(target); err != nil {
@@ -65,7 +65,7 @@ func newEscapeCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := tmux.ValidateTarget(target); err != nil {
+			if err := validatePaneTarget(target); err != nil {
 				return err
 			}
 			if err := tmux.Escape(target); err != nil {
