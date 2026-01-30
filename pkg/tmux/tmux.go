@@ -442,6 +442,24 @@ func Capture(target string, lines int) (string, error) {
 	return out.String(), nil
 }
 
+// CaptureJoined returns the visible content of a pane, joining wrapped lines.
+func CaptureJoined(target string, lines int) (string, error) {
+	if _, err := ensureTmux(); err != nil {
+		return "", fmt.Errorf("tmux not found in PATH: %w", err)
+	}
+	args := []string{"capture-pane", "-p", "-J", "-t", target}
+	if lines > 0 {
+		args = append(args, "-S", fmt.Sprintf("-%d", lines))
+	}
+	cmd := exec.Command("tmux", args...)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("tmux capture-pane: %w", err)
+	}
+	return out.String(), nil
+}
+
 // PaneActivity returns the last activity time for a pane.
 func PaneActivity(target string) (time.Time, error) {
 	if _, err := ensureTmux(); err != nil {

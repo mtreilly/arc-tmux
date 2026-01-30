@@ -82,7 +82,7 @@ func newFollowCmd() *cobra.Command {
 			defer ticker.Stop()
 
 			for {
-				capture, err := tmux.Capture(target, lines)
+				capture, err := tmux.CaptureJoined(target, lines)
 				if err != nil {
 					return err
 				}
