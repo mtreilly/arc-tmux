@@ -93,6 +93,18 @@ func newRunCmd() *cobra.Command {
 					codePtr = code
 					found = ok
 				}
+				if exitCode && !found {
+					hadTrailingNewline := strings.HasSuffix(capture, "\n")
+					cleanLines, code, ok := extractExitFromLines(splitLines(capture), exitTag)
+					if ok {
+						capture = strings.Join(cleanLines, "\n")
+						if hadTrailingNewline {
+							capture += "\n"
+						}
+						codePtr = code
+						found = true
+					}
+				}
 			}
 
 			out := cmd.OutOrStdout()
