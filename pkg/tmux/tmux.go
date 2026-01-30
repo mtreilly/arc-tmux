@@ -409,6 +409,21 @@ func SendLiteral(target string, text string, enter bool, delayEnter time.Duratio
 	return nil
 }
 
+// SendKeys sends tmux key names to the pane (e.g., C-x, Enter, Down).
+func SendKeys(target string, keys []string) error {
+	if len(keys) == 0 {
+		return nil
+	}
+	if _, err := ensureTmux(); err != nil {
+		return fmt.Errorf("tmux not found in PATH: %w", err)
+	}
+	args := append([]string{"send-keys", "-t", target}, keys...)
+	if err := exec.Command("tmux", args...).Run(); err != nil {
+		return fmt.Errorf("tmux send-keys: %w", err)
+	}
+	return nil
+}
+
 // Capture returns the visible content of a pane.
 func Capture(target string, lines int) (string, error) {
 	if _, err := ensureTmux(); err != nil {

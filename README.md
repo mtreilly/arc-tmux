@@ -97,11 +97,14 @@ Streams NDJSON events (one object per line):
 { "time": "2025-01-29T10:15:42.123Z", "line": "Starting server..." }
 ```
 
-Use `--from-start` to emit the full buffer first. `--lines` controls the capture size (0 for full).
+By default `follow` emits only new lines after it starts. Use `--from-start` to emit the full buffer first.
+`--lines` controls the capture size (0 for full). Use `--duration`/`--timeout` or `--once` to stop.
 
 ### run --output json
 
-When `--exit-code` is enabled, `run` emits a sentinel exit code and parses it into structured output. Use `--exit-propagate` to return a non-zero exit status when the parsed exit code is non-zero.
+When `--exit-code` is enabled, `run` emits a sentinel exit code and parses it into structured output.
+Use `--segment` to capture only the output produced by the command (using start/end markers),
+and `--exit-propagate` to return a non-zero exit status when the parsed exit code is non-zero.
 
 ```json
 {
@@ -182,6 +185,8 @@ arc-tmux signal --pane=@current --signal TERM
   - `arc-tmux follow --pane=dev:2.0 --lines 200`
 - Full buffer then follow:
   - `arc-tmux follow --pane=dev:2.0 --from-start`
+- Send control keys:
+  - `arc-tmux send --pane=dev:2.0 --key C-x --key C-c`
 - Locate panes by command/title/path:
   - `arc-tmux locate --field command node`
 

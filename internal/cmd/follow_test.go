@@ -10,10 +10,10 @@ func TestSplitLines(t *testing.T) {
 }
 
 func TestDiffLinesOverlap(t *testing.T) {
-	prev := []string{"a", "b"}
-	curr := []string{"x", "a", "b", "c"}
+	prev := []string{"a", "b", "c"}
+	curr := []string{"a", "b", "c", "d"}
 	diff := diffLines(prev, curr)
-	if len(diff) != 1 || diff[0] != "c" {
+	if len(diff) != 1 || diff[0] != "d" {
 		t.Fatalf("unexpected diff: %#v", diff)
 	}
 }
@@ -27,10 +27,23 @@ func TestDiffLinesNoMatch(t *testing.T) {
 	}
 }
 
-func TestTailLines(t *testing.T) {
-	lines := []string{"a", "b", "c", "d"}
-	res := tailLines(lines, 2)
-	if len(res) != 2 || res[0] != "c" || res[1] != "d" {
-		t.Fatalf("unexpected tail: %#v", res)
+func TestDiffLinesSuffixPrefix(t *testing.T) {
+	prev := []string{"a", "b", "c"}
+	curr := []string{"b", "c", "d"}
+	diff := diffLines(prev, curr)
+	if len(diff) != 1 || diff[0] != "d" {
+		t.Fatalf("unexpected diff: %#v", diff)
+	}
+}
+
+func TestDiffLinesByCount(t *testing.T) {
+	prevCount := 2
+	curr := []string{"a", "b", "c"}
+	diff := diffLinesByCount(curr, &prevCount)
+	if len(diff) != 1 || diff[0] != "c" {
+		t.Fatalf("unexpected diff: %#v", diff)
+	}
+	if prevCount != 3 {
+		t.Fatalf("unexpected count: %d", prevCount)
 	}
 }

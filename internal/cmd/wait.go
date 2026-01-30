@@ -60,12 +60,18 @@ func newWaitCmd() *cobra.Command {
 				if err := enc.Encode(result); err != nil {
 					return err
 				}
+				if waitErr != nil && isTimeout(waitErr) {
+					return nil
+				}
 				return waitErr
 			case outputOpts.Is(output.OutputYAML):
 				enc := yaml.NewEncoder(out)
 				defer func() { _ = enc.Close() }()
 				if err := enc.Encode(result); err != nil {
 					return err
+				}
+				if waitErr != nil && isTimeout(waitErr) {
+					return nil
 				}
 				return waitErr
 			case outputOpts.Is(output.OutputQuiet):

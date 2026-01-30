@@ -19,23 +19,31 @@ func newSendCmd() *cobra.Command {
 	var paneArg string
 	var enter bool
 	var delayEnter float64
+	var keys []string
 	var outputOpts output.OutputOptions
 
 	cmd := &cobra.Command{
 		Use:   "send [text]",
 		Short: "Send text to a tmux pane",
-		Long:  "Send literal text to a pane. By default we press Enter after the text.",
+		Long:  "Send literal text or tmux key names to a pane. By default we press Enter after the text.",
 		Example: `  # Basic send (auto-enter)
   arc-tmux send "npm test" --pane=fe:2.0
 
   # Send without pressing Enter
-  arc-tmux send "export SECRET=" --pane=fe:2.0 --enter=false`,
-		Args: cobra.MinimumNArgs(1),
+  arc-tmux send "export SECRET=" --pane=fe:2.0 --enter=false
+
+  # Send raw tmux keys
+  arc-tmux send --pane=fe:2.0 --key C-x --key C-c`,
+		Args: func(cmd *cobra.Command, args []string) error {
+			if len(args) == 0 && len(keys) == 0 {
+				return fmt.Errorf("requires text or at least one --key")
+			}
+			return nil
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
-			text := strings.Join(args, " ")
 
 			target, err := resolvePaneTarget(paneArg)
 			if err != nil {
@@ -46,13 +54,22 @@ func newSendCmd() *cobra.Command {
 			}
 
 			d := time.Duration(delayEnter * float64(time.Second))
-			if err := tmux.SendLiteral(target, text, enter, d); err != nil {
-				return err
+			text := strings.Join(args, " ")
+			if text != "" {
+				if err := tmux.SendLiteral(target, text, enter, d); err != nil {
+					return err
+				}
+			}
+			if len(keys) > 0 {
+				if err := tmux.SendKeys(target, keys); err != nil {
+					return err
+				}
 			}
 
 			result := sendResult{
 				PaneID:    target,
 				Text:      text,
+				Keys:      keys,
 				Enter:     enter,
 				DelaySecs: delayEnter,
 			}
@@ -76,6 +93,7 @@ func newSendCmd() *cobra.Command {
 
 	outputOpts.AddOutputFlags(cmd, output.OutputTable)
 	cmd.Flags().StringVar(&paneArg, "pane", "", "Target tmux pane (e.g., fe:4.1, @current, @active)")
+	cmd.Flags().StringArrayVar(&keys, "key", nil, "Send tmux key names (repeatable, e.g., C-x, Up, Enter)")
 	cmd.Flags().BoolVar(&enter, "enter", true, "Press Enter after sending text")
 	cmd.Flags().Float64Var(&delayEnter, "delay-enter", 1.0, "Delay in seconds before pressing Enter")
 	_ = cmd.MarkFlagRequired("pane")
@@ -84,8 +102,9 @@ func newSendCmd() *cobra.Command {
 }
 
 type sendResult struct {
-	PaneID    string  `json:"pane_id" yaml:"pane_id"`
-	Text      string  `json:"text" yaml:"text"`
-	Enter     bool    `json:"enter" yaml:"enter"`
-	DelaySecs float64 `json:"delay_secs" yaml:"delay_secs"`
+	PaneID    string   `json:"pane_id" yaml:"pane_id"`
+	Text      string   `json:"text" yaml:"text"`
+	Keys      []string `json:"keys,omitempty" yaml:"keys,omitempty"`
+	Enter     bool     `json:"enter" yaml:"enter"`
+	DelaySecs float64  `json:"delay_secs" yaml:"delay_secs"`
 }
