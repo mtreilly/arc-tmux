@@ -4,6 +4,8 @@
 package cmd
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -23,6 +25,7 @@ func newRunCmd() *cobra.Command {
 	var exitCode bool
 	var exitTag string
 	var exitPropagate bool
+	var segment bool
 	var outputOpts output.OutputOptions
 
 	cmd := &cobra.Command{
@@ -51,8 +54,13 @@ func newRunCmd() *cobra.Command {
 			}
 
 			text := strings.Join(args, " ")
-			if exitCode {
-				text = wrapCommandForExit(text, exitTag)
+			var startTag string
+			var endTag string
+			if exitCode || segment {
+				runID := newRunID()
+				startTag = fmt.Sprintf("__ARC_TMUX_RUN_START:%s__", runID)
+				endTag = fmt.Sprintf("__ARC_TMUX_RUN_END:%s__", runID)
+				text = wrapCommandForRun(text, startTag, endTag, exitTag, exitCode)
 			}
 
 			if err := tmux.SendLiteral(target, text, true, 0); err != nil {
@@ -73,8 +81,18 @@ func newRunCmd() *cobra.Command {
 			capture := s
 			var codePtr *int
 			var found bool
-			if exitCode {
-				capture, codePtr, found = extractExitCode(capture, exitTag)
+			if exitCode || segment {
+				clean, code, ok, windowFound := extractRunWindow(capture, startTag, endTag, exitTag, exitCode)
+				if !windowFound && lines > 0 {
+					if full, err := tmux.Capture(target, 0); err == nil {
+						clean, code, ok, windowFound = extractRunWindow(full, startTag, endTag, exitTag, exitCode)
+					}
+				}
+				if windowFound {
+					capture = clean
+					codePtr = code
+					found = ok
+				}
 			}
 
 			out := cmd.OutOrStdout()
@@ -140,6 +158,7 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&exitCode, "exit-code", false, "Emit and parse a sentinel exit code")
 	cmd.Flags().StringVar(&exitTag, "exit-tag", "__ARC_TMUX_EXIT:", "Sentinel tag for exit code parsing")
 	cmd.Flags().BoolVar(&exitPropagate, "exit-propagate", false, "Return a non-zero exit when the parsed exit code is non-zero")
+	cmd.Flags().BoolVar(&segment, "segment", false, "Capture only output for this command by inserting sentinel markers (runs via sh -lc)")
 	_ = cmd.MarkFlagRequired("pane")
 
 	return cmd
@@ -152,11 +171,21 @@ type runResult struct {
 	WaitError string `json:"wait_error,omitempty" yaml:"wait_error,omitempty"`
 }
 
-func wrapCommandForExit(command string, tag string) string {
-	if strings.TrimSpace(tag) == "" {
-		tag = "__ARC_TMUX_EXIT:"
+func wrapCommandForRun(command string, startTag string, endTag string, exitTag string, includeExit bool) string {
+	if strings.TrimSpace(startTag) == "" {
+		startTag = "__ARC_TMUX_RUN_START__"
 	}
-	inner := fmt.Sprintf("%s; printf \"\\n%s%%d\\n\" $?", command, tag)
+	if strings.TrimSpace(endTag) == "" {
+		endTag = "__ARC_TMUX_RUN_END__"
+	}
+	inner := fmt.Sprintf("printf \"\\n%s\\n\"; ( %s ); status=$?;", startTag, command)
+	if includeExit {
+		if strings.TrimSpace(exitTag) == "" {
+			exitTag = "__ARC_TMUX_EXIT:"
+		}
+		inner += fmt.Sprintf(" printf \"\\n%s%%d\\n\" \"$status\";", exitTag)
+	}
+	inner += fmt.Sprintf(" printf \"\\n%s\\n\"", endTag)
 	return "sh -lc " + shellQuoteSingle(inner)
 }
 
@@ -167,16 +196,50 @@ func shellQuoteSingle(value string) string {
 	return "'" + strings.ReplaceAll(value, "'", `'"'"'`) + "'"
 }
 
-func extractExitCode(output string, tag string) (string, *int, bool) {
-	if tag == "" {
-		return output, nil, false
+func extractRunWindow(output string, startTag string, endTag string, exitTag string, parseExit bool) (string, *int, bool, bool) {
+	if startTag == "" || endTag == "" {
+		return output, nil, false, false
 	}
 	hadTrailingNewline := strings.HasSuffix(output, "\n")
 	lines := splitLines(output)
+	startIdx := -1
 	for i := len(lines) - 1; i >= 0; i-- {
-		if !strings.Contains(lines[i], tag) {
-			continue
+		if strings.Contains(lines[i], startTag) {
+			startIdx = i
+			break
 		}
+	}
+	if startIdx == -1 {
+		return output, nil, false, false
+	}
+	endIdx := -1
+	for i := startIdx + 1; i < len(lines); i++ {
+		if strings.Contains(lines[i], endTag) {
+			endIdx = i
+			break
+		}
+	}
+	if endIdx == -1 {
+		endIdx = len(lines)
+	}
+	segment := append([]string(nil), lines[startIdx+1:endIdx]...)
+	var code *int
+	found := false
+	if parseExit {
+		segment, code, found = extractExitFromLines(segment, exitTag)
+	}
+	clean := strings.Join(segment, "\n")
+	if hadTrailingNewline {
+		clean += "\n"
+	}
+	return clean, code, found, true
+}
+
+func extractExitFromLines(lines []string, tag string) ([]string, *int, bool) {
+	if tag == "" {
+		return lines, nil, false
+	}
+	for i := len(lines) - 1; i >= 0; i-- {
 		idx := strings.Index(lines[i], tag)
 		if idx < 0 {
 			continue
@@ -190,13 +253,17 @@ func extractExitCode(output string, tag string) (string, *int, bool) {
 			continue
 		}
 		lines = append(lines[:i], lines[i+1:]...)
-		clean := strings.Join(lines, "\n")
-		if hadTrailingNewline {
-			clean += "\n"
-		}
-		return clean, &code, true
+		return lines, &code, true
 	}
-	return output, nil, false
+	return lines, nil, false
+}
+
+func newRunID() string {
+	var buf [6]byte
+	if _, err := rand.Read(buf[:]); err == nil {
+		return hex.EncodeToString(buf[:])
+	}
+	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
 
 func combineRunErrors(waitErr error, exitPropagate bool, code *int, found bool) error {

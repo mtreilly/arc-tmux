@@ -26,6 +26,8 @@ func newFollowCmd() *cobra.Command {
 	var lines int
 	var interval float64
 	var fromStart bool
+	var duration float64
+	var once bool
 
 	cmd := &cobra.Command{
 		Use:   "follow",
@@ -33,7 +35,9 @@ func newFollowCmd() *cobra.Command {
 		Long:  "Continuously poll a tmux pane and stream any new output lines.",
 		Example: `  arc-tmux follow --pane=fe:2.0
   arc-tmux follow --pane=fe:2.0 --output json
-  arc-tmux follow --pane=fe:2.0 --from-start`,
+  arc-tmux follow --pane=fe:2.0 --from-start
+  arc-tmux follow --pane=fe:2.0 --duration 10
+  arc-tmux follow --pane=fe:2.0 --once`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
@@ -52,6 +56,9 @@ func newFollowCmd() *cobra.Command {
 			if fromStart && !cmd.Flags().Changed("lines") {
 				lines = 0
 			}
+			if duration < 0 {
+				duration = 0
+			}
 
 			out := cmd.OutOrStdout()
 			var jsonEnc *json.Encoder
@@ -65,7 +72,12 @@ func newFollowCmd() *cobra.Command {
 			}
 
 			var prev []string
-			maxPrev := 50
+			prevCount := 0
+			initialized := false
+			var deadline time.Time
+			if duration > 0 {
+				deadline = time.Now().Add(time.Duration(duration * float64(time.Second)))
+			}
 			ticker := time.NewTicker(time.Duration(interval * float64(time.Second)))
 			defer ticker.Stop()
 
@@ -75,16 +87,34 @@ func newFollowCmd() *cobra.Command {
 					return err
 				}
 				curr := splitLines(capture)
-				emit := curr
-				if len(prev) > 0 {
+				var emit []string
+				if !initialized {
+					if fromStart {
+						emit = curr
+					}
+					initialized = true
+					if lines == 0 {
+						prevCount = len(curr)
+					} else {
+						prev = curr
+					}
+				} else if lines == 0 {
+					emit = diffLinesByCount(curr, &prevCount)
+				} else {
 					emit = diffLines(prev, curr)
+					prev = curr
 				}
-				prev = tailLines(curr, maxPrev)
 
 				if err := emitFollow(out, outputOpts, jsonEnc, yamlEnc, emit); err != nil {
 					return err
 				}
 
+				if once {
+					return nil
+				}
+				if !deadline.IsZero() && time.Now().After(deadline) {
+					return nil
+				}
 				<-ticker.C
 			}
 		},
@@ -95,6 +125,9 @@ func newFollowCmd() *cobra.Command {
 	cmd.Flags().IntVar(&lines, "lines", 200, "Limit capture to last N lines (0 for full)")
 	cmd.Flags().Float64Var(&interval, "interval", 1.0, "Polling interval in seconds")
 	cmd.Flags().BoolVar(&fromStart, "from-start", false, "Emit the full buffer before streaming new lines")
+	cmd.Flags().Float64Var(&duration, "duration", 0, "Stop after N seconds (0 to run indefinitely)")
+	cmd.Flags().Float64Var(&duration, "timeout", 0, "Alias for --duration")
+	cmd.Flags().BoolVar(&once, "once", false, "Capture once and exit")
 	_ = cmd.MarkFlagRequired("pane")
 
 	return cmd
@@ -140,22 +173,33 @@ func diffLines(prev []string, curr []string) []string {
 	if len(prev) == 0 {
 		return curr
 	}
-	if len(prev) > len(curr) {
-		return curr
+	max := len(prev)
+	if len(curr) < max {
+		max = len(curr)
 	}
-	for i := 0; i+len(prev) <= len(curr); i++ {
-		if equalSlice(curr[i:i+len(prev)], prev) {
-			return curr[i+len(prev):]
+	for k := max; k > 0; k-- {
+		if equalSlice(prev[len(prev)-k:], curr[:k]) {
+			return curr[k:]
 		}
 	}
 	return curr
 }
 
-func tailLines(lines []string, limit int) []string {
-	if limit <= 0 || len(lines) <= limit {
-		return lines
+func diffLinesByCount(curr []string, prevCount *int) []string {
+	if prevCount == nil {
+		return curr
 	}
-	return lines[len(lines)-limit:]
+	if *prevCount <= 0 {
+		*prevCount = len(curr)
+		return curr
+	}
+	if len(curr) < *prevCount {
+		*prevCount = len(curr)
+		return curr
+	}
+	emit := curr[*prevCount:]
+	*prevCount = len(curr)
+	return emit
 }
 
 func equalSlice(a []string, b []string) bool {
