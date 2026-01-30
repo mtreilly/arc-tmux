@@ -23,6 +23,7 @@ Common subcommands:
   list      List available tmux panes
   locate    Locate panes by metadata
   alias     Manage pane aliases
+  recipes   Show common workflows
   send      Send text to a pane
   capture   Capture pane output
   follow    Stream pane output
@@ -54,6 +55,7 @@ Common subcommands:
 		newSessionsCmd(),
 		newLocateCmd(),
 		newAliasCmd(),
+		newRecipesCmd(),
 		newSendCmd(),
 		newCaptureCmd(),
 		newWaitCmd(),

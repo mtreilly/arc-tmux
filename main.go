@@ -4,6 +4,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/yourorg/arc-tmux/internal/cmd"
@@ -12,6 +13,7 @@ import (
 func main() {
 	root := cmd.NewRootCmd()
 	if err := root.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 }

@@ -36,7 +36,7 @@ func newAttachCmd() *cobra.Command {
 				return err
 			}
 			if tmux.InTmux() {
-				return errors.New("already inside tmux; open a new terminal to attach")
+				return newCodedError(errNoTmuxClient, "already inside tmux; open a new terminal to attach", nil)
 			}
 
 			var target string

@@ -41,7 +41,7 @@ func newSignalCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := tmux.ValidateTarget(target); err != nil {
+			if err := validatePaneTarget(target); err != nil {
 				return err
 			}
 
@@ -111,5 +111,5 @@ func parseSignal(raw string) (syscall.Signal, string, error) {
 	if num, err := strconv.Atoi(upper); err == nil {
 		return syscall.Signal(num), fmt.Sprintf("SIG%d", num), nil
 	}
-	return 0, "", fmt.Errorf("unsupported signal: %s", raw)
+	return 0, "", newCodedError(errSignalUnsupported, fmt.Sprintf("unsupported signal: %s", raw), nil)
 }

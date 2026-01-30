@@ -9,7 +9,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/yourorg/arc-sdk/output"
-	"github.com/yourorg/arc-tmux/pkg/tmux"
 	"gopkg.in/yaml.v3"
 )
 
@@ -117,7 +116,7 @@ func newAliasSetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if err := tmux.ValidateTarget(target); err != nil {
+			if err := validatePaneTarget(target); err != nil {
 				return err
 			}
 
