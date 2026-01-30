@@ -78,34 +78,41 @@ func newStopCmd() *cobra.Command {
 			}
 
 			out := cmd.OutOrStdout()
+			retErr := waitErr
 			switch {
 			case outputOpts.Is(output.OutputJSON):
 				enc := json.NewEncoder(out)
 				enc.SetIndent("", "  ")
-				return enc.Encode(result)
+				if err := enc.Encode(result); err != nil {
+					return err
+				}
+				return retErr
 			case outputOpts.Is(output.OutputYAML):
 				enc := yaml.NewEncoder(out)
 				defer enc.Close()
-				return enc.Encode(result)
+				if err := enc.Encode(result); err != nil {
+					return err
+				}
+				return retErr
 			case outputOpts.Is(output.OutputQuiet):
 				if result.Killed {
 					fmt.Fprintln(out, "killed")
-					return nil
+					return retErr
 				}
 				fmt.Fprintln(out, "interrupted")
-				return nil
+				return retErr
 			}
 
 			if result.Killed {
 				fmt.Fprintf(out, "Pane %s interrupted and killed after timeout.\n", target)
-				return nil
+				return retErr
 			}
 			if result.TimedOut {
 				fmt.Fprintf(out, "Pane %s interrupted but did not become idle within timeout.\n", target)
-				return nil
+				return retErr
 			}
 			fmt.Fprintf(out, "Pane %s interrupted.\n", target)
-			return nil
+			return retErr
 		},
 	}
 
