@@ -5,19 +5,23 @@ package cmd
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 
 	"github.com/mattn/go-isatty"
 	"github.com/spf13/cobra"
+	"github.com/yourorg/arc-sdk/output"
 	"github.com/yourorg/arc-tmux/pkg/tmux"
+	"gopkg.in/yaml.v3"
 )
 
 func newKillCmd() *cobra.Command {
 	var paneArg string
 	var yes bool
 	var dryRun bool
+	var outputOpts output.OutputOptions
 
 	cmd := &cobra.Command{
 		Use:   "kill",
@@ -29,6 +33,9 @@ func newKillCmd() *cobra.Command {
   # Kill without prompting (useful in scripts)
   arc-tmux kill --pane=fe:2.0 --yes`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := outputOpts.Resolve(); err != nil {
+				return err
+			}
 			target, err := resolvePaneTarget(paneArg)
 			if err != nil {
 				return err
@@ -38,8 +45,7 @@ func newKillCmd() *cobra.Command {
 			}
 
 			if dryRun {
-				fmt.Fprintf(cmd.OutOrStdout(), "[dry-run] Would kill tmux pane %s\n", target)
-				return nil
+				return writeKillResult(cmd, outputOpts, killResult{PaneID: target, DryRun: true}, "[dry-run] Would kill tmux pane")
 			}
 
 			if !yes {
@@ -53,10 +59,14 @@ func newKillCmd() *cobra.Command {
 				}
 			}
 
-			return tmux.Kill(target)
+			if err := tmux.Kill(target); err != nil {
+				return err
+			}
+			return writeKillResult(cmd, outputOpts, killResult{PaneID: target, Killed: true}, "Killed tmux pane")
 		},
 	}
 
+	outputOpts.AddOutputFlags(cmd, output.OutputTable)
 	cmd.Flags().StringVar(&paneArg, "pane", "", "Target tmux pane (e.g., fe:4.1, @current, @active)")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Skip confirmation prompt")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview without killing")
@@ -90,4 +100,32 @@ func confirmPrompt(cmd *cobra.Command, prompt string) (bool, error) {
 			fmt.Fprintln(cmd.OutOrStdout(), "Please answer 'y' or 'n'.")
 		}
 	}
+}
+
+type killResult struct {
+	PaneID string `json:"pane_id" yaml:"pane_id"`
+	DryRun bool   `json:"dry_run" yaml:"dry_run"`
+	Killed bool   `json:"killed" yaml:"killed"`
+}
+
+func writeKillResult(cmd *cobra.Command, outputOpts output.OutputOptions, result killResult, message string) error {
+	out := cmd.OutOrStdout()
+	switch {
+	case outputOpts.Is(output.OutputJSON):
+		enc := json.NewEncoder(out)
+		enc.SetIndent("", "  ")
+		return enc.Encode(result)
+	case outputOpts.Is(output.OutputYAML):
+		enc := yaml.NewEncoder(out)
+		defer enc.Close()
+		return enc.Encode(result)
+	case outputOpts.Is(output.OutputQuiet):
+		return nil
+	}
+	if result.DryRun {
+		fmt.Fprintf(out, "%s %s\n", message, result.PaneID)
+		return nil
+	}
+	fmt.Fprintf(out, "%s %s\n", message, result.PaneID)
+	return nil
 }

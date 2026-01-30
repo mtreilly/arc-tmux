@@ -4,6 +4,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -11,11 +12,14 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/yourorg/arc-sdk/output"
 	"github.com/yourorg/arc-tmux/pkg/tmux"
+	"gopkg.in/yaml.v3"
 )
 
 func newAttachCmd() *cobra.Command {
 	var sessionFlag string
+	var outputOpts output.OutputOptions
 
 	cmd := &cobra.Command{
 		Use:   "attach [session]",
@@ -28,6 +32,9 @@ func newAttachCmd() *cobra.Command {
   arc-tmux attach prod`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := outputOpts.Resolve(); err != nil {
+				return err
+			}
 			if tmux.InTmux() {
 				return errors.New("already inside tmux; open a new terminal to attach")
 			}
@@ -47,10 +54,14 @@ func newAttachCmd() *cobra.Command {
 				return fmt.Errorf("failed to ensure session %q: %w", target, err)
 			}
 
+			if !outputOpts.Is(output.OutputTable) {
+				return writeAttachResult(cmd, outputOpts, attachResult{Session: target})
+			}
 			return tmux.Attach(target)
 		},
 	}
 
+	outputOpts.AddOutputFlags(cmd, output.OutputTable)
 	cmd.Flags().StringVar(&sessionFlag, "session", "", "Session to attach (default: arc-tmux)")
 
 	return cmd
@@ -60,6 +71,7 @@ func newCleanupCmd() *cobra.Command {
 	var session string
 	var yes bool
 	var dryRun bool
+	var outputOpts output.OutputOptions
 
 	cmd := &cobra.Command{
 		Use:   "cleanup",
@@ -68,13 +80,15 @@ func newCleanupCmd() *cobra.Command {
 		Example: `  arc-tmux cleanup
   arc-tmux cleanup --session fe --yes`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := outputOpts.Resolve(); err != nil {
+				return err
+			}
 			if session == "" {
 				session = resolveManagedSession()
 			}
 
 			if dryRun {
-				fmt.Fprintf(cmd.OutOrStdout(), "Dry run: would kill tmux session %q\n", session)
-				return nil
+				return writeCleanupResult(cmd, outputOpts, cleanupResult{Session: session, DryRun: true})
 			}
 
 			if !yes {
@@ -88,10 +102,14 @@ func newCleanupCmd() *cobra.Command {
 				}
 			}
 
-			return tmux.Cleanup(session)
+			if err := tmux.Cleanup(session); err != nil {
+				return err
+			}
+			return writeCleanupResult(cmd, outputOpts, cleanupResult{Session: session, Killed: true})
 		},
 	}
 
+	outputOpts.AddOutputFlags(cmd, output.OutputTable)
 	cmd.Flags().StringVar(&session, "session", "", "Session to kill (default: arc-tmux)")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Skip confirmation prompt")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview without killing")
@@ -102,6 +120,7 @@ func newCleanupCmd() *cobra.Command {
 func newLaunchCmd() *cobra.Command {
 	var split string
 	var session string
+	var outputOpts output.OutputOptions
 
 	cmd := &cobra.Command{
 		Use:   "launch [command]",
@@ -118,6 +137,9 @@ Commands are executed via "sh -lc", so full shell strings are supported.`,
   arc-tmux launch`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := outputOpts.Resolve(); err != nil {
+				return err
+			}
 			var command string
 			if len(args) > 0 {
 				command = args[0]
@@ -133,11 +155,30 @@ Commands are executed via "sh -lc", so full shell strings are supported.`,
 				return err
 			}
 
-			fmt.Fprintln(cmd.OutOrStdout(), paneID)
+			out := cmd.OutOrStdout()
+			switch {
+			case outputOpts.Is(output.OutputJSON):
+				result := launchResult{PaneID: paneID}
+				fillLaunchResult(&result, paneID)
+				enc := json.NewEncoder(out)
+				enc.SetIndent("", "  ")
+				return enc.Encode(result)
+			case outputOpts.Is(output.OutputYAML):
+				result := launchResult{PaneID: paneID}
+				fillLaunchResult(&result, paneID)
+				enc := yaml.NewEncoder(out)
+				defer enc.Close()
+				return enc.Encode(result)
+			case outputOpts.Is(output.OutputQuiet):
+				fmt.Fprintln(out, paneID)
+				return nil
+			}
+			fmt.Fprintln(out, paneID)
 			return nil
 		},
 	}
 
+	outputOpts.AddOutputFlags(cmd, output.OutputTable)
 	cmd.Flags().StringVar(&split, "split", "", "Inside tmux: split direction (h|v)")
 	cmd.Flags().StringVar(&session, "session", "", "Managed session name when outside tmux")
 
@@ -146,6 +187,7 @@ Commands are executed via "sh -lc", so full shell strings are supported.`,
 
 func newWindowsCmd() *cobra.Command {
 	var session string
+	var outputOpts output.OutputOptions
 
 	cmd := &cobra.Command{
 		Use:   "windows",
@@ -154,6 +196,9 @@ func newWindowsCmd() *cobra.Command {
 		Example: `  arc-tmux windows
   arc-tmux windows --session fe`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := outputOpts.Resolve(); err != nil {
+				return err
+			}
 			if session != "" {
 				resolved, err := resolveSessionTarget(session)
 				if err != nil {
@@ -186,8 +231,25 @@ func newWindowsCmd() *cobra.Command {
 				return err
 			}
 
+			out := cmd.OutOrStdout()
+			switch {
+			case outputOpts.Is(output.OutputJSON):
+				enc := json.NewEncoder(out)
+				enc.SetIndent("", "  ")
+				return enc.Encode(wins)
+			case outputOpts.Is(output.OutputYAML):
+				enc := yaml.NewEncoder(out)
+				defer enc.Close()
+				return enc.Encode(wins)
+			case outputOpts.Is(output.OutputQuiet):
+				for _, w := range wins {
+					fmt.Fprintf(out, "%s:%d\n", w.Session, w.WindowIndex)
+				}
+				return nil
+			}
+
 			if len(wins) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "No windows found")
+				fmt.Fprintln(out, "No windows found")
 				return nil
 			}
 
@@ -203,7 +265,7 @@ func newWindowsCmd() *cobra.Command {
 			sort.Strings(sessions)
 
 			for _, s := range sessions {
-				fmt.Fprintf(cmd.OutOrStdout(), "%s:\n", s)
+				fmt.Fprintf(out, "%s:\n", s)
 				ws := bySess[s]
 				sort.Slice(ws, func(i, j int) bool { return ws[i].WindowIndex < ws[j].WindowIndex })
 				for _, w := range ws {
@@ -211,13 +273,14 @@ func newWindowsCmd() *cobra.Command {
 					if w.Active {
 						status = "active"
 					}
-					fmt.Fprintf(cmd.OutOrStdout(), "  %d  (%s)  %s\n", w.WindowIndex, status, w.Name)
+					fmt.Fprintf(out, "  %d  (%s)  %s\n", w.WindowIndex, status, w.Name)
 				}
 			}
 			return nil
 		},
 	}
 
+	outputOpts.AddOutputFlags(cmd, output.OutputTable)
 	cmd.Flags().StringVar(&session, "session", "", "Session name or selector (@current|@managed)")
 
 	return cmd
@@ -228,4 +291,72 @@ func resolveManagedSession() string {
 		return env
 	}
 	return "arc-tmux"
+}
+
+type cleanupResult struct {
+	Session string `json:"session" yaml:"session"`
+	DryRun  bool   `json:"dry_run" yaml:"dry_run"`
+	Killed  bool   `json:"killed" yaml:"killed"`
+}
+
+func writeCleanupResult(cmd *cobra.Command, outputOpts output.OutputOptions, result cleanupResult) error {
+	out := cmd.OutOrStdout()
+	switch {
+	case outputOpts.Is(output.OutputJSON):
+		enc := json.NewEncoder(out)
+		enc.SetIndent("", "  ")
+		return enc.Encode(result)
+	case outputOpts.Is(output.OutputYAML):
+		enc := yaml.NewEncoder(out)
+		defer enc.Close()
+		return enc.Encode(result)
+	case outputOpts.Is(output.OutputQuiet):
+		return nil
+	}
+	if result.DryRun {
+		fmt.Fprintf(out, "Dry run: would kill tmux session %q\n", result.Session)
+		return nil
+	}
+	if result.Killed {
+		fmt.Fprintf(out, "Killed tmux session %q\n", result.Session)
+		return nil
+	}
+	return nil
+}
+
+type attachResult struct {
+	Session string `json:"session" yaml:"session"`
+}
+
+func writeAttachResult(cmd *cobra.Command, outputOpts output.OutputOptions, result attachResult) error {
+	out := cmd.OutOrStdout()
+	switch {
+	case outputOpts.Is(output.OutputJSON):
+		enc := json.NewEncoder(out)
+		enc.SetIndent("", "  ")
+		return enc.Encode(result)
+	case outputOpts.Is(output.OutputYAML):
+		enc := yaml.NewEncoder(out)
+		defer enc.Close()
+		return enc.Encode(result)
+	case outputOpts.Is(output.OutputQuiet):
+		fmt.Fprintln(out, result.Session)
+		return nil
+	}
+	fmt.Fprintf(out, "Attach session %q\n", result.Session)
+	return nil
+}
+
+type launchResult struct {
+	PaneID      string `json:"pane_id" yaml:"pane_id"`
+	Session     string `json:"session,omitempty" yaml:"session,omitempty"`
+	WindowIndex int    `json:"window_index,omitempty" yaml:"window_index,omitempty"`
+	PaneIndex   int    `json:"pane_index,omitempty" yaml:"pane_index,omitempty"`
+}
+
+func fillLaunchResult(result *launchResult, paneID string) {
+	session, window, pane := parseFormattedPaneID(paneID)
+	result.Session = session
+	result.WindowIndex = window
+	result.PaneIndex = pane
 }

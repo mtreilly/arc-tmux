@@ -90,12 +90,16 @@ func newAliasListCmd() *cobra.Command {
 func newAliasSetCmd() *cobra.Command {
 	var file string
 	var paneArg string
+	var outputOpts output.OutputOptions
 
 	cmd := &cobra.Command{
 		Use:   "set <name> [pane]",
 		Short: "Set an alias",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := outputOpts.Resolve(); err != nil {
+				return err
+			}
 			name, err := normalizeAliasName(args[0])
 			if err != nil {
 				return err
@@ -126,11 +130,27 @@ func newAliasSetCmd() *cobra.Command {
 			if err := saveAliases(path, aliases); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Alias %s => %s\n", name, target)
+			entry := aliasEntry{Name: name, Target: target}
+			out := cmd.OutOrStdout()
+			switch {
+			case outputOpts.Is(output.OutputJSON):
+				enc := json.NewEncoder(out)
+				enc.SetIndent("", "  ")
+				return enc.Encode(entry)
+			case outputOpts.Is(output.OutputYAML):
+				enc := yaml.NewEncoder(out)
+				defer enc.Close()
+				return enc.Encode(entry)
+			case outputOpts.Is(output.OutputQuiet):
+				fmt.Fprintln(out, entry.Name)
+				return nil
+			}
+			fmt.Fprintf(out, "Alias %s => %s\n", name, target)
 			return nil
 		},
 	}
 
+	outputOpts.AddOutputFlags(cmd, output.OutputTable)
 	cmd.Flags().StringVar(&file, "file", "", "Alias file path (default: ARC_TMUX_ALIASES or config dir)")
 	cmd.Flags().StringVar(&paneArg, "pane", "", "Target tmux pane (e.g., fe:4.1, @current, @active)")
 	return cmd
@@ -138,12 +158,16 @@ func newAliasSetCmd() *cobra.Command {
 
 func newAliasUnsetCmd() *cobra.Command {
 	var file string
+	var outputOpts output.OutputOptions
 
 	cmd := &cobra.Command{
 		Use:   "unset <name>",
 		Short: "Remove an alias",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := outputOpts.Resolve(); err != nil {
+				return err
+			}
 			name, err := normalizeAliasName(args[0])
 			if err != nil {
 				return err
@@ -153,19 +177,21 @@ func newAliasUnsetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			out := cmd.OutOrStdout()
 			if _, ok := aliases[name]; !ok {
-				fmt.Fprintf(cmd.OutOrStdout(), "Alias %s not found.\n", name)
-				return nil
+				result := aliasUnsetResult{Name: name, Removed: false}
+				return writeAliasUnset(out, outputOpts, result)
 			}
 			delete(aliases, name)
 			if err := saveAliases(path, aliases); err != nil {
 				return err
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "Alias %s removed.\n", name)
-			return nil
+			result := aliasUnsetResult{Name: name, Removed: true}
+			return writeAliasUnset(out, outputOpts, result)
 		},
 	}
 
+	outputOpts.AddOutputFlags(cmd, output.OutputTable)
 	cmd.Flags().StringVar(&file, "file", "", "Alias file path (default: ARC_TMUX_ALIASES or config dir)")
 	return cmd
 }
@@ -226,4 +252,33 @@ func aliasPath(file string) string {
 		return file
 	}
 	return defaultAliasFile()
+}
+
+type aliasUnsetResult struct {
+	Name    string `json:"name" yaml:"name"`
+	Removed bool   `json:"removed" yaml:"removed"`
+}
+
+func writeAliasUnset(out interface{ Write([]byte) (int, error) }, outputOpts output.OutputOptions, result aliasUnsetResult) error {
+	switch {
+	case outputOpts.Is(output.OutputJSON):
+		enc := json.NewEncoder(out)
+		enc.SetIndent("", "  ")
+		return enc.Encode(result)
+	case outputOpts.Is(output.OutputYAML):
+		enc := yaml.NewEncoder(out)
+		defer enc.Close()
+		return enc.Encode(result)
+	case outputOpts.Is(output.OutputQuiet):
+		if result.Removed {
+			fmt.Fprintln(out, result.Name)
+		}
+		return nil
+	}
+	if result.Removed {
+		fmt.Fprintf(out, "Alias %s removed.\n", result.Name)
+		return nil
+	}
+	fmt.Fprintf(out, "Alias %s not found.\n", result.Name)
+	return nil
 }

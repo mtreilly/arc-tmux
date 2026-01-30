@@ -101,7 +101,7 @@ Use `--from-start` to emit the full buffer first. `--lines` controls the capture
 
 ### run --output json
 
-When `--exit-code` is enabled, `run` emits a sentinel exit code and parses it into structured output.
+When `--exit-code` is enabled, `run` emits a sentinel exit code and parses it into structured output. Use `--exit-propagate` to return a non-zero exit status when the parsed exit code is non-zero.
 
 ```json
 {
