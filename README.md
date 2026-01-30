@@ -97,8 +97,9 @@ Streams NDJSON events (one object per line):
 { "time": "2025-01-29T10:15:42.123Z", "line": "Starting server..." }
 ```
 
-By default `follow` emits only new lines after it starts. Use `--from-start` to emit the full buffer first.
-`--lines` controls the capture size (0 for full). Use `--duration`/`--timeout` or `--once` to stop.
+By default `follow` emits only new lines after it starts (wrapped lines are joined for stability).
+Use `--from-start` to emit the full buffer first. `--lines` controls the capture size (0 for full).
+Use `--duration`/`--timeout` or `--once` to stop.
 
 ### run --output json
 
