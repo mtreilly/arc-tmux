@@ -34,7 +34,7 @@ func newSendCmd() *cobra.Command {
 
   # Send raw tmux keys
   arc-tmux send --pane=fe:2.0 --key C-x --key C-c`,
-		Args: func(cmd *cobra.Command, args []string) error {
+		Args: func(_ *cobra.Command, args []string) error {
 			if len(args) == 0 && len(keys) == 0 {
 				return fmt.Errorf("requires text or at least one --key")
 			}
