@@ -22,6 +22,7 @@ func newRunCmd() *cobra.Command {
 	var lines int
 	var exitCode bool
 	var exitTag string
+	var exitPropagate bool
 	var outputOpts output.OutputOptions
 
 	cmd := &cobra.Command{
@@ -92,7 +93,7 @@ func newRunCmd() *cobra.Command {
 				if err := enc.Encode(result); err != nil {
 					return err
 				}
-				return waitErr
+				return combineRunErrors(waitErr, exitPropagate, codePtr, found)
 
 			case outputOpts.Is(output.OutputYAML):
 				result := runResult{
@@ -108,13 +109,13 @@ func newRunCmd() *cobra.Command {
 				if err := enc.Encode(result); err != nil {
 					return err
 				}
-				return waitErr
+				return combineRunErrors(waitErr, exitPropagate, codePtr, found)
 
 			case outputOpts.Is(output.OutputQuiet):
 				if exitCode && codePtr != nil {
 					fmt.Fprintln(out, *codePtr)
 				}
-				return waitErr
+				return combineRunErrors(waitErr, exitPropagate, codePtr, found)
 			}
 
 			fmt.Fprint(out, capture)
@@ -125,7 +126,7 @@ func newRunCmd() *cobra.Command {
 					fmt.Fprintln(out, "\nExit code: unknown")
 				}
 			}
-			return waitErr
+			return combineRunErrors(waitErr, exitPropagate, codePtr, found)
 		},
 	}
 
@@ -136,6 +137,7 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().IntVar(&lines, "lines", 200, "Limit capture to last N lines (0 for full)")
 	cmd.Flags().BoolVar(&exitCode, "exit-code", false, "Emit and parse a sentinel exit code")
 	cmd.Flags().StringVar(&exitTag, "exit-tag", "__ARC_TMUX_EXIT:", "Sentinel tag for exit code parsing")
+	cmd.Flags().BoolVar(&exitPropagate, "exit-propagate", false, "Return a non-zero exit when the parsed exit code is non-zero")
 	_ = cmd.MarkFlagRequired("pane")
 
 	return cmd
@@ -193,4 +195,14 @@ func extractExitCode(output string, tag string) (string, *int, bool) {
 		return clean, &code, true
 	}
 	return output, nil, false
+}
+
+func combineRunErrors(waitErr error, exitPropagate bool, code *int, found bool) error {
+	if waitErr != nil {
+		return waitErr
+	}
+	if exitPropagate && found && code != nil && *code != 0 {
+		return fmt.Errorf("command exited with %d", *code)
+	}
+	return nil
 }
