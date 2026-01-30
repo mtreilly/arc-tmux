@@ -18,15 +18,21 @@ Sessions are the top-level workspaces; each session owns windows, and every
 window can contain multiple panes.
 
 Common subcommands:
+  sessions  List tmux sessions
+  panes     List tmux panes with metadata
   list      List available tmux panes
+  locate    Locate panes by metadata
+  alias     Manage pane aliases
   send      Send text to a pane
   capture   Capture pane output
+  follow    Stream pane output
   run       Send -> wait for idle -> capture
   wait      Block until a pane quiets down
   kill      Safely kill a pane
   attach    Attach to a session
   launch    Open a new pane/window
   windows   List windows for a session
+  inspect   Inspect a pane and process tree
   status    Show current tmux location`,
 		Example: `  arc-tmux list
   arc-tmux send "npm test" --pane=fe:2.0
@@ -41,6 +47,10 @@ Common subcommands:
 
 	root.AddCommand(
 		newListCmd(),
+		newPanesCmd(),
+		newSessionsCmd(),
+		newLocateCmd(),
+		newAliasCmd(),
 		newSendCmd(),
 		newCaptureCmd(),
 		newWaitCmd(),
@@ -48,6 +58,8 @@ Common subcommands:
 		newInterruptCmd(),
 		newEscapeCmd(),
 		newKillCmd(),
+		newInspectCmd(),
+		newFollowCmd(),
 		newAttachCmd(),
 		newCleanupCmd(),
 		newLaunchCmd(),

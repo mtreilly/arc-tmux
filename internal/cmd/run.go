@@ -28,17 +28,17 @@ func newRunCmd() *cobra.Command {
   arc-tmux run "make lint" --pane=fe:2.0 --idle=5 --timeout=600`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if paneArg == "" {
-				return fmt.Errorf("--pane is required")
+			target, err := resolvePaneTarget(paneArg)
+			if err != nil {
+				return err
 			}
-
-			if err := tmux.ValidateTarget(paneArg); err != nil {
+			if err := tmux.ValidateTarget(target); err != nil {
 				return err
 			}
 
 			text := strings.Join(args, " ")
 
-			if err := tmux.SendLiteral(paneArg, text, true, 0); err != nil {
+			if err := tmux.SendLiteral(target, text, true, 0); err != nil {
 				return err
 			}
 
@@ -46,9 +46,9 @@ func newRunCmd() *cobra.Command {
 				timeout = 60
 			}
 
-			waitErr := tmux.WaitIdle(paneArg, time.Duration(idle*float64(time.Second)), time.Duration(timeout*float64(time.Second)))
+			waitErr := tmux.WaitIdle(target, time.Duration(idle*float64(time.Second)), time.Duration(timeout*float64(time.Second)))
 
-			s, err := tmux.Capture(paneArg, lines)
+			s, err := tmux.Capture(target, lines)
 			if err != nil {
 				return err
 			}
@@ -58,7 +58,7 @@ func newRunCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&paneArg, "pane", "", "Target tmux pane (e.g., fe:4.1)")
+	cmd.Flags().StringVar(&paneArg, "pane", "", "Target tmux pane (e.g., fe:4.1, @current, @active)")
 	cmd.Flags().Float64Var(&idle, "idle", 2.0, "Seconds of inactivity to consider idle")
 	cmd.Flags().Float64Var(&timeout, "timeout", 60.0, "Maximum seconds to wait")
 	cmd.Flags().IntVar(&lines, "lines", 200, "Limit capture to last N lines (0 for full)")

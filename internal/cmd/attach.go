@@ -109,7 +109,8 @@ func newLaunchCmd() *cobra.Command {
 		Long: `Launch a new tmux pane/window and immediately run a command.
 
 Inside tmux: splits the current window.
-Outside tmux: ensures the managed session exists and opens a fresh window there.`,
+Outside tmux: ensures the managed session exists and opens a fresh window there.
+Commands are executed via "sh -lc", so full shell strings are supported.`,
 		Example: `  # Split current tmux window
   arc-tmux launch "htop" --split v
 
@@ -153,8 +154,23 @@ func newWindowsCmd() *cobra.Command {
 		Example: `  arc-tmux windows
   arc-tmux windows --session fe`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if session == "" && !tmux.InTmux() {
-				session = resolveManagedSession()
+			if session != "" {
+				resolved, err := resolveSessionTarget(session)
+				if err != nil {
+					return err
+				}
+				session = resolved
+			}
+			if session == "" {
+				if tmux.InTmux() {
+					sess, _, _, _, err := tmux.CurrentLocation()
+					if err != nil {
+						return err
+					}
+					session = sess
+				} else {
+					session = resolveManagedSession()
+				}
 			}
 
 			wins, err := tmux.ListWindows(session)
@@ -202,7 +218,7 @@ func newWindowsCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&session, "session", "", "Session name")
+	cmd.Flags().StringVar(&session, "session", "", "Session name or selector (@current|@managed)")
 
 	return cmd
 }

@@ -30,16 +30,16 @@ func newSendCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			text := strings.Join(args, " ")
 
-			if paneArg == "" {
-				return fmt.Errorf("--pane is required")
+			target, err := resolvePaneTarget(paneArg)
+			if err != nil {
+				return err
 			}
-
-			if err := tmux.ValidateTarget(paneArg); err != nil {
+			if err := tmux.ValidateTarget(target); err != nil {
 				return err
 			}
 
 			d := time.Duration(delayEnter * float64(time.Second))
-			if err := tmux.SendLiteral(paneArg, text, enter, d); err != nil {
+			if err := tmux.SendLiteral(target, text, enter, d); err != nil {
 				return err
 			}
 
@@ -48,7 +48,7 @@ func newSendCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&paneArg, "pane", "", "Target tmux pane (e.g., fe:4.1)")
+	cmd.Flags().StringVar(&paneArg, "pane", "", "Target tmux pane (e.g., fe:4.1, @current, @active)")
 	cmd.Flags().BoolVar(&enter, "enter", true, "Press Enter after sending text")
 	cmd.Flags().Float64Var(&delayEnter, "delay-enter", 1.0, "Delay in seconds before pressing Enter")
 	_ = cmd.MarkFlagRequired("pane")

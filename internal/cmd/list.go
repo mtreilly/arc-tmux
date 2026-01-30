@@ -39,6 +39,10 @@ func newListCmd() *cobra.Command {
 
 			rawPanes, err := tmux.ListPanes()
 			if err != nil {
+				if err == tmux.ErrNoTmuxServer {
+					fmt.Fprintln(cmd.OutOrStdout(), "No tmux server is running.")
+					return nil
+				}
 				return err
 			}
 

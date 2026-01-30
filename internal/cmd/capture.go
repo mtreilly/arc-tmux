@@ -24,15 +24,15 @@ func newCaptureCmd() *cobra.Command {
   # Save entire buffer
   arc-tmux capture --pane=fe:2.0 --lines=0 > pane.log`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if paneArg == "" {
-				return fmt.Errorf("--pane is required")
+			target, err := resolvePaneTarget(paneArg)
+			if err != nil {
+				return err
 			}
-
-			if err := tmux.ValidateTarget(paneArg); err != nil {
+			if err := tmux.ValidateTarget(target); err != nil {
 				return err
 			}
 
-			s, err := tmux.Capture(paneArg, lines)
+			s, err := tmux.Capture(target, lines)
 			if err != nil {
 				return err
 			}
@@ -42,7 +42,7 @@ func newCaptureCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&paneArg, "pane", "", "Target tmux pane (e.g., fe:4.1)")
+	cmd.Flags().StringVar(&paneArg, "pane", "", "Target tmux pane (e.g., fe:4.1, @current, @active)")
 	cmd.Flags().IntVar(&lines, "lines", 200, "Limit capture to last N lines (0 for full)")
 	_ = cmd.MarkFlagRequired("pane")
 

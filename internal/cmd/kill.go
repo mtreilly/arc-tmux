@@ -29,20 +29,21 @@ func newKillCmd() *cobra.Command {
   # Kill without prompting (useful in scripts)
   arc-tmux kill --pane=fe:2.0 --yes`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if paneArg == "" {
-				return fmt.Errorf("--pane is required")
+			target, err := resolvePaneTarget(paneArg)
+			if err != nil {
+				return err
 			}
-			if err := tmux.ValidateTarget(paneArg); err != nil {
+			if err := tmux.ValidateTarget(target); err != nil {
 				return err
 			}
 
 			if dryRun {
-				fmt.Fprintf(cmd.OutOrStdout(), "[dry-run] Would kill tmux pane %s\n", paneArg)
+				fmt.Fprintf(cmd.OutOrStdout(), "[dry-run] Would kill tmux pane %s\n", target)
 				return nil
 			}
 
 			if !yes {
-				confirmed, err := confirmPrompt(cmd, fmt.Sprintf("Kill tmux pane %s? [y/N]: ", paneArg))
+				confirmed, err := confirmPrompt(cmd, fmt.Sprintf("Kill tmux pane %s? [y/N]: ", target))
 				if err != nil {
 					return err
 				}
@@ -52,11 +53,11 @@ func newKillCmd() *cobra.Command {
 				}
 			}
 
-			return tmux.Kill(paneArg)
+			return tmux.Kill(target)
 		},
 	}
 
-	cmd.Flags().StringVar(&paneArg, "pane", "", "Target tmux pane (e.g., fe:4.1)")
+	cmd.Flags().StringVar(&paneArg, "pane", "", "Target tmux pane (e.g., fe:4.1, @current, @active)")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Skip confirmation prompt")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "Preview without killing")
 	_ = cmd.MarkFlagRequired("pane")
