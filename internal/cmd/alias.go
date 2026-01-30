@@ -39,7 +39,7 @@ func newAliasListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List aliases",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
@@ -59,23 +59,23 @@ func newAliasListCmd() *cobra.Command {
 
 			case outputOpts.Is(output.OutputYAML):
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				return enc.Encode(entries)
 
 			case outputOpts.Is(output.OutputQuiet):
 				for _, entry := range entries {
-					fmt.Fprintln(out, entry.Name)
+					_, _ = fmt.Fprintln(out, entry.Name)
 				}
 				return nil
 			}
 
 			if len(entries) == 0 {
-				fmt.Fprintln(out, "No aliases defined.")
+				_, _ = fmt.Fprintln(out, "No aliases defined.")
 				return nil
 			}
-			fmt.Fprintln(out, "Aliases:")
+			_, _ = fmt.Fprintln(out, "Aliases:")
 			for _, entry := range entries {
-				fmt.Fprintf(out, "  %s => %s\n", entry.Name, entry.Target)
+				_, _ = fmt.Fprintf(out, "  %s => %s\n", entry.Name, entry.Target)
 			}
 			return nil
 		},
@@ -138,13 +138,13 @@ func newAliasSetCmd() *cobra.Command {
 				return enc.Encode(entry)
 			case outputOpts.Is(output.OutputYAML):
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				return enc.Encode(entry)
 			case outputOpts.Is(output.OutputQuiet):
-				fmt.Fprintln(out, entry.Name)
+				_, _ = fmt.Fprintln(out, entry.Name)
 				return nil
 			}
-			fmt.Fprintf(out, "Alias %s => %s\n", name, target)
+			_, _ = fmt.Fprintf(out, "Alias %s => %s\n", name, target)
 			return nil
 		},
 	}
@@ -230,13 +230,13 @@ func newAliasResolveCmd() *cobra.Command {
 				return enc.Encode(entry)
 			case outputOpts.Is(output.OutputYAML):
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				return enc.Encode(entry)
 			case outputOpts.Is(output.OutputQuiet):
-				fmt.Fprintln(out, entry.Target)
+				_, _ = fmt.Fprintln(out, entry.Target)
 				return nil
 			}
-			fmt.Fprintf(out, "%s => %s\n", entry.Name, entry.Target)
+			_, _ = fmt.Fprintf(out, "%s => %s\n", entry.Name, entry.Target)
 			return nil
 		},
 	}
@@ -266,18 +266,18 @@ func writeAliasUnset(out interface{ Write([]byte) (int, error) }, outputOpts out
 		return enc.Encode(result)
 	case outputOpts.Is(output.OutputYAML):
 		enc := yaml.NewEncoder(out)
-		defer enc.Close()
+		defer func() { _ = enc.Close() }()
 		return enc.Encode(result)
 	case outputOpts.Is(output.OutputQuiet):
 		if result.Removed {
-			fmt.Fprintln(out, result.Name)
+			_, _ = fmt.Fprintln(out, result.Name)
 		}
 		return nil
 	}
 	if result.Removed {
-		fmt.Fprintf(out, "Alias %s removed.\n", result.Name)
+		_, _ = fmt.Fprintf(out, "Alias %s removed.\n", result.Name)
 		return nil
 	}
-	fmt.Fprintf(out, "Alias %s not found.\n", result.Name)
+	_, _ = fmt.Fprintf(out, "Alias %s not found.\n", result.Name)
 	return nil
 }

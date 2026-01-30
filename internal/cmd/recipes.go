@@ -28,7 +28,7 @@ func newRecipesCmd() *cobra.Command {
 		Long:  "Show common arc-tmux workflows for agents and developers.",
 		Example: `  arc-tmux recipes
   arc-tmux recipes --output json`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
@@ -42,22 +42,22 @@ func newRecipesCmd() *cobra.Command {
 				return enc.Encode(recipes)
 			case outputOpts.Is(output.OutputYAML):
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				return enc.Encode(recipes)
 			case outputOpts.Is(output.OutputQuiet):
 				for _, r := range recipes {
-					fmt.Fprintln(out, r.Name)
+					_, _ = fmt.Fprintln(out, r.Name)
 				}
 				return nil
 			}
 
 			if len(recipes) == 0 {
-				fmt.Fprintln(out, "No recipes available.")
+				_, _ = fmt.Fprintln(out, "No recipes available.")
 				return nil
 			}
-			fmt.Fprintln(out, "Recipes:")
+			_, _ = fmt.Fprintln(out, "Recipes:")
 			for _, r := range recipes {
-				fmt.Fprintf(out, "  %s\n    %s\n    %s\n", r.Name, r.Description, r.Command)
+				_, _ = fmt.Fprintf(out, "  %s\n    %s\n    %s\n", r.Name, r.Description, r.Command)
 			}
 			return nil
 		},

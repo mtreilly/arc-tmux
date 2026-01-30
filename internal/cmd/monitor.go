@@ -45,7 +45,7 @@ func newMonitorCmd() *cobra.Command {
 		Long:  "Return a single snapshot of pane activity, idle state, and output hash.",
 		Example: `  arc-tmux monitor --pane=fe:2.0
   arc-tmux monitor --pane=@current --idle 5 --lines 200 --output json`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
@@ -99,14 +99,14 @@ func newMonitorCmd() *cobra.Command {
 				return enc.Encode(snapshot)
 			case outputOpts.Is(output.OutputYAML):
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				return enc.Encode(snapshot)
 			case outputOpts.Is(output.OutputQuiet):
 				if snapshot.Idle {
-					fmt.Fprintln(out, "idle")
+					_, _ = fmt.Fprintln(out, "idle")
 					return nil
 				}
-				fmt.Fprintln(out, "busy")
+				_, _ = fmt.Fprintln(out, "busy")
 				return nil
 			}
 
@@ -114,7 +114,7 @@ func newMonitorCmd() *cobra.Command {
 			if snapshot.Idle {
 				status = "idle"
 			}
-			fmt.Fprintf(out, "Pane %s is %s (idle %.1fs). hash=%s\n", target, status, snapshot.IdleSeconds, snapshot.OutputHash)
+			_, _ = fmt.Fprintf(out, "Pane %s is %s (idle %.1fs). hash=%s\n", target, status, snapshot.IdleSeconds, snapshot.OutputHash)
 			return nil
 		},
 	}

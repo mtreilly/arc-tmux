@@ -32,7 +32,7 @@ func newListCmd() *cobra.Command {
 		Example: `  arc-tmux list
   arc-tmux list --flat
   arc-tmux list --output json`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
@@ -40,7 +40,7 @@ func newListCmd() *cobra.Command {
 			rawPanes, err := tmux.ListPanes()
 			if err != nil {
 				if err == tmux.ErrNoTmuxServer {
-					fmt.Fprintln(cmd.OutOrStdout(), "No tmux server is running.")
+					_, _ = fmt.Fprintln(cmd.OutOrStdout(), "No tmux server is running.")
 					return nil
 				}
 				return err
@@ -67,29 +67,29 @@ func newListCmd() *cobra.Command {
 
 			case outputOpts.Is(output.OutputYAML):
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				return enc.Encode(panes)
 
 			case outputOpts.Is(output.OutputQuiet):
 				for _, p := range panes {
-					fmt.Fprintln(out, p.FormattedID)
+					_, _ = fmt.Fprintln(out, p.FormattedID)
 				}
 				return nil
 			}
 
 			if len(panes) == 0 {
-				fmt.Fprintln(out, "No tmux panes found.")
+				_, _ = fmt.Fprintln(out, "No tmux panes found.")
 				return nil
 			}
 
 			if flat {
-				fmt.Fprintln(out, "Available tmux panes:")
+				_, _ = fmt.Fprintln(out, "Available tmux panes:")
 				for _, p := range panes {
 					status := "inactive"
 					if p.Active {
 						status = "active"
 					}
-					fmt.Fprintf(out, "  - %s  title=%s  cmd=%s  (%s)\n", p.FormattedID, p.Title, p.Command, status)
+					_, _ = fmt.Fprintf(out, "  - %s  title=%s  cmd=%s  (%s)\n", p.FormattedID, p.Title, p.Command, status)
 				}
 				return nil
 			}
@@ -102,7 +102,7 @@ func newListCmd() *cobra.Command {
 			}
 			sort.Strings(sessions)
 
-			fmt.Fprintln(out, "Tmux windows and panes:")
+			_, _ = fmt.Fprintln(out, "Tmux windows and panes:")
 			for _, sess := range sessions {
 				wins := grouped[sess]
 				winKeys := make([]string, 0, len(wins))
@@ -111,7 +111,7 @@ func newListCmd() *cobra.Command {
 				}
 				sort.Strings(winKeys)
 
-				fmt.Fprintf(out, "%s:\n", sess)
+				_, _ = fmt.Fprintf(out, "%s:\n", sess)
 				for _, wkey := range winKeys {
 					panesInWin := wins[wkey]
 					winActive := false
@@ -125,13 +125,13 @@ func newListCmd() *cobra.Command {
 					if winActive {
 						wstatus = "active"
 					}
-					fmt.Fprintf(out, "  %s  (%s)\n", wkey, wstatus)
+					_, _ = fmt.Fprintf(out, "  %s  (%s)\n", wkey, wstatus)
 					for _, p := range panesInWin {
 						pstatus := "inactive"
 						if p.Active {
 							pstatus = "active"
 						}
-						fmt.Fprintf(out, "    - %s  title=%s  cmd=%s  (%s)\n", p.FormattedID, p.Title, p.Command, pstatus)
+						_, _ = fmt.Fprintf(out, "    - %s  title=%s  cmd=%s  (%s)\n", p.FormattedID, p.Title, p.Command, pstatus)
 					}
 				}
 			}

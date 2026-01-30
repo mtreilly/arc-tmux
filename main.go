@@ -1,6 +1,7 @@
 // Copyright (c) 2025 Arc Engineering
 // SPDX-License-Identifier: MIT
 
+// Package main is the entrypoint for arc-tmux.
 package main
 
 import (

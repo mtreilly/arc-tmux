@@ -29,7 +29,7 @@ func newInspectCmd() *cobra.Command {
 		Long:  "Inspect a tmux pane and return metadata plus the process tree for its PID.",
 		Example: `  arc-tmux inspect --pane=fe:2.0
   arc-tmux inspect --pane=fe:2.0 --output json`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
@@ -63,24 +63,24 @@ func newInspectCmd() *cobra.Command {
 
 			case outputOpts.Is(output.OutputYAML):
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				return enc.Encode(snap)
 
 			case outputOpts.Is(output.OutputQuiet):
-				fmt.Fprintln(out, fmt.Sprintf("%s:%d.%d", pane.Session, pane.WindowIndex, pane.PaneIndex))
+				_, _ = fmt.Fprintf(out, "%s:%d.%d\n", pane.Session, pane.WindowIndex, pane.PaneIndex)
 				return nil
 			}
 
 			paneID := fmt.Sprintf("%s:%d.%d", pane.Session, pane.WindowIndex, pane.PaneIndex)
-			fmt.Fprintf(out, "Pane: %s (id=%s)\n", paneID, pane.PaneID)
-			fmt.Fprintf(out, "  active=%t  window=%s:%d (%s)  window_active=%t\n",
+			_, _ = fmt.Fprintf(out, "Pane: %s (id=%s)\n", paneID, pane.PaneID)
+			_, _ = fmt.Fprintf(out, "  active=%t  window=%s:%d (%s)  window_active=%t\n",
 				pane.Active,
 				pane.Session,
 				pane.WindowIndex,
 				pane.WindowName,
 				pane.WindowActive,
 			)
-			fmt.Fprintf(out, "  cmd=%s  title=%s  path=%s  pid=%d  activity=%s\n",
+			_, _ = fmt.Fprintf(out, "  cmd=%s  title=%s  path=%s  pid=%d  activity=%s\n",
 				pane.Command,
 				pane.Title,
 				pane.Path,
@@ -89,14 +89,14 @@ func newInspectCmd() *cobra.Command {
 			)
 
 			if len(tree) == 0 {
-				fmt.Fprintln(out, "Process tree: (not available)")
+				_, _ = fmt.Fprintln(out, "Process tree: (not available)")
 				return nil
 			}
 
-			fmt.Fprintln(out, "Process tree:")
+			_, _ = fmt.Fprintln(out, "Process tree:")
 			for _, node := range tree {
 				indent := strings.Repeat("  ", node.Depth)
-				fmt.Fprintf(out, "%s- %d  %s\n", indent, node.PID, node.Command)
+				_, _ = fmt.Fprintf(out, "%s- %d  %s\n", indent, node.PID, node.Command)
 			}
 			return nil
 		},

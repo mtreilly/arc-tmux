@@ -27,7 +27,7 @@ func newCaptureCmd() *cobra.Command {
 
   # Save entire buffer
   arc-tmux capture --pane=fe:2.0 --lines=0 > pane.log`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
@@ -54,7 +54,7 @@ func newCaptureCmd() *cobra.Command {
 			case outputOpts.Is(output.OutputYAML):
 				result := captureResult{PaneID: target, Output: s}
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				return enc.Encode(result)
 			case outputOpts.Is(output.OutputQuiet):
 				_, err := fmt.Fprint(out, s)

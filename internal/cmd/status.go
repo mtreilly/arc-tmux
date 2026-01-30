@@ -41,7 +41,7 @@ func newStatusCmd() *cobra.Command {
 		Long:  "Inside tmux: prints your current session/window plus all panes. Outside: shows managed session.",
 		Example: `  arc-tmux status
   arc-tmux status --output json`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
@@ -105,39 +105,39 @@ func newStatusCmd() *cobra.Command {
 
 			case outputOpts.Is(output.OutputYAML):
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				return enc.Encode(snap)
 
 			case outputOpts.Is(output.OutputQuiet):
 				if snap.PaneID != "" {
-					fmt.Fprintln(out, snap.PaneID)
+					_, _ = fmt.Fprintln(out, snap.PaneID)
 				} else if snap.ManagedSession != "" {
-					fmt.Fprintln(out, snap.ManagedSession)
+					_, _ = fmt.Fprintln(out, snap.ManagedSession)
 				}
 				return nil
 
 			default:
 				if snap.InTmux {
-					fmt.Fprintf(out, "Current: %s\n", snap.PaneID)
-					fmt.Fprintf(out, "Window:  %s:%d", snap.Session, snap.WindowIndex)
+					_, _ = fmt.Fprintf(out, "Current: %s\n", snap.PaneID)
+					_, _ = fmt.Fprintf(out, "Window:  %s:%d", snap.Session, snap.WindowIndex)
 					if snap.WindowName != "" {
-						fmt.Fprintf(out, " (%s)", snap.WindowName)
+						_, _ = fmt.Fprintf(out, " (%s)", snap.WindowName)
 					}
-					fmt.Fprintln(out)
+					_, _ = fmt.Fprintln(out)
 
 					if len(snap.Panes) > 0 {
-						fmt.Fprintln(out, "\nPanes:")
+						_, _ = fmt.Fprintln(out, "\nPanes:")
 						for _, p := range snap.Panes {
 							mark := " "
 							if p.Active {
 								mark = "*"
 							}
-							fmt.Fprintf(out, "%s %-14s %-16s %s\n", mark, p.ID, p.Command, p.Title)
+							_, _ = fmt.Fprintf(out, "%s %-14s %-16s %s\n", mark, p.ID, p.Command, p.Title)
 						}
 					}
 				} else {
-					fmt.Fprintf(out, "Managed session: %s\n", snap.ManagedSession)
-					fmt.Fprintln(out, "Not currently inside tmux.")
+					_, _ = fmt.Fprintf(out, "Managed session: %s\n", snap.ManagedSession)
+					_, _ = fmt.Fprintln(out, "Not currently inside tmux.")
 				}
 				return nil
 			}

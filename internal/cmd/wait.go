@@ -25,7 +25,7 @@ func newWaitCmd() *cobra.Command {
 		Long:  "Poll a pane until it stops printing output.",
 		Example: `  # Wait up to 2 minutes for a compile step
   arc-tmux wait --pane=fe:2.0 --idle=2 --timeout=120`,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if err := outputOpts.Resolve(); err != nil {
 				return err
 			}
@@ -63,26 +63,26 @@ func newWaitCmd() *cobra.Command {
 				return waitErr
 			case outputOpts.Is(output.OutputYAML):
 				enc := yaml.NewEncoder(out)
-				defer enc.Close()
+				defer func() { _ = enc.Close() }()
 				if err := enc.Encode(result); err != nil {
 					return err
 				}
 				return waitErr
 			case outputOpts.Is(output.OutputQuiet):
 				if result.Idle {
-					fmt.Fprintln(out, "idle")
+					_, _ = fmt.Fprintln(out, "idle")
 					return waitErr
 				}
 				if result.TimedOut {
-					fmt.Fprintln(out, "timeout")
+					_, _ = fmt.Fprintln(out, "timeout")
 					return waitErr
 				}
 				return waitErr
 			}
 			if result.Idle {
-				fmt.Fprintf(out, "Pane %s is idle.\n", target)
+				_, _ = fmt.Fprintf(out, "Pane %s is idle.\n", target)
 			} else if result.TimedOut {
-				fmt.Fprintf(out, "Pane %s did not become idle in time.\n", target)
+				_, _ = fmt.Fprintf(out, "Pane %s did not become idle in time.\n", target)
 			}
 			return waitErr
 		},

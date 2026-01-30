@@ -1,6 +1,7 @@
 // Copyright (c) 2025 Arc Engineering
 // SPDX-License-Identifier: MIT
 
+// Package tmux provides a small wrapper around the tmux CLI.
 package tmux
 
 import (
@@ -17,7 +18,9 @@ import (
 )
 
 var (
-	ErrNoTmuxServer    = errors.New("no tmux server running")
+	// ErrNoTmuxServer indicates no tmux server is running.
+	ErrNoTmuxServer = errors.New("no tmux server running")
+	// ErrSessionNotFound indicates the requested tmux session does not exist.
 	ErrSessionNotFound = errors.New("tmux session not found")
 )
 
@@ -498,7 +501,6 @@ func buildProcessTree(rootPID int, procs []ProcessInfo) []ProcessNode {
 	children := make(map[int][]ProcessInfo)
 	for _, p := range procs {
 		byPID[p.PID] = p
-		children[p.PID] = children[p.PID]
 		children[p.PPID] = append(children[p.PPID], p)
 	}
 	if _, ok := byPID[rootPID]; !ok {
