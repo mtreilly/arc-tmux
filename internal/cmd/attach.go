@@ -50,8 +50,17 @@ func newAttachCmd() *cobra.Command {
 				target = resolveManagedSession()
 			}
 
+			resolved, shouldStyle, err := resolveAgentSessionName(target)
+			if err != nil {
+				return err
+			}
+			target = resolved
+
 			if err := tmux.EnsureSession(target); err != nil {
 				return fmt.Errorf("failed to ensure session %q: %w", target, err)
+			}
+			if err := applyAgentStyleIfNeeded(target, shouldStyle); err != nil {
+				return err
 			}
 
 			if !outputOpts.Is(output.OutputTable) {
@@ -86,6 +95,12 @@ func newCleanupCmd() *cobra.Command {
 			if session == "" {
 				session = resolveManagedSession()
 			}
+
+			resolved, err := resolveExistingSessionName(session)
+			if err != nil {
+				return err
+			}
+			session = resolved
 
 			if dryRun {
 				return writeCleanupResult(cmd, outputOpts, cleanupResult{Session: session, DryRun: true})
@@ -148,6 +163,19 @@ Commands are executed via "sh -lc", so full shell strings are supported.`,
 			sess := session
 			if !tmux.InTmux() && strings.TrimSpace(sess) == "" {
 				sess = resolveManagedSession()
+			}
+			if !tmux.InTmux() {
+				resolved, shouldStyle, err := resolveAgentSessionName(sess)
+				if err != nil {
+					return err
+				}
+				sess = resolved
+				if err := tmux.EnsureSession(sess); err != nil {
+					return fmt.Errorf("failed to ensure session %q: %w", sess, err)
+				}
+				if err := applyAgentStyleIfNeeded(sess, shouldStyle); err != nil {
+					return err
+				}
 			}
 
 			paneID, err := tmux.Launch(sess, command, split)

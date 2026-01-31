@@ -123,7 +123,7 @@ func newRunCmd() *cobra.Command {
 				if err := enc.Encode(result); err != nil {
 					return err
 				}
-				return combineRunErrors(waitErr, exitPropagate, codePtr, found)
+				return combineRunErrors(waitErr, exitPropagate, exitCode, codePtr, found)
 
 			case outputOpts.Is(output.OutputYAML):
 				result := runResult{
@@ -139,13 +139,13 @@ func newRunCmd() *cobra.Command {
 				if err := enc.Encode(result); err != nil {
 					return err
 				}
-				return combineRunErrors(waitErr, exitPropagate, codePtr, found)
+				return combineRunErrors(waitErr, exitPropagate, exitCode, codePtr, found)
 
 			case outputOpts.Is(output.OutputQuiet):
 				if exitCode && codePtr != nil {
 					_, _ = fmt.Fprintln(out, *codePtr)
 				}
-				return combineRunErrors(waitErr, exitPropagate, codePtr, found)
+				return combineRunErrors(waitErr, exitPropagate, exitCode, codePtr, found)
 			}
 
 			if _, err := fmt.Fprint(out, capture); err != nil {
@@ -158,7 +158,7 @@ func newRunCmd() *cobra.Command {
 					_, _ = fmt.Fprintln(out, "\nExit code: unknown")
 				}
 			}
-			return combineRunErrors(waitErr, exitPropagate, codePtr, found)
+			return combineRunErrors(waitErr, exitPropagate, exitCode, codePtr, found)
 		},
 	}
 
@@ -278,12 +278,17 @@ func newRunID() string {
 	return fmt.Sprintf("%d", time.Now().UnixNano())
 }
 
-func combineRunErrors(waitErr error, exitPropagate bool, code *int, found bool) error {
+func combineRunErrors(waitErr error, exitPropagate bool, exitRequested bool, code *int, found bool) error {
 	if waitErr != nil {
 		return waitErr
 	}
-	if exitPropagate && found && code != nil && *code != 0 {
-		return newCodedError(errCommandExit, fmt.Sprintf("command exited with %d", *code), nil)
+	if exitPropagate {
+		if !found && exitRequested {
+			return newCodedError(errCommandExit, "exit code not found", nil)
+		}
+		if found && code != nil && *code != 0 {
+			return newCodedError(errCommandExit, fmt.Sprintf("command exited with %d", *code), nil)
+		}
 	}
 	return nil
 }
