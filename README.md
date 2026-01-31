@@ -148,6 +148,17 @@ arc-tmux recipes
 arc-tmux recipes --output json
 ```
 
+## Agent sessions & styling
+
+Sessions created by `arc-tmux` are prefixed with `arc-` when a new session is needed
+(existing sessions keep their original name). Newly created agent sessions receive
+distinctive styling and metadata for easy identification:
+
+- Status bar + active window/pane styling
+- `@arc_tmux=1`, `@arc_tmux_owner`, `@arc_tmux_host`, `@arc_tmux_created_at`
+- `ARC_TMUX=1` environment in the session
+- Agent sessions default new windows to `sh` for predictable automation
+
 ## Error codes
 
 When commands fail, errors include a stable code prefix for machine parsing (e.g. `ERR_INVALID_PANE: ...`).

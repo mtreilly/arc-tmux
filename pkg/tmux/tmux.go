@@ -94,6 +94,31 @@ func ensureTmux() (string, error) {
 // InTmux reports whether running inside a tmux session.
 func InTmux() bool { return os.Getenv("TMUX") != "" }
 
+// HasSession reports whether the named session exists.
+func HasSession(name string) (bool, error) {
+	if _, err := ensureTmux(); err != nil {
+		return false, fmt.Errorf("tmux not found in PATH: %w", err)
+	}
+	cmd := exec.Command("tmux", "has-session", "-t", name)
+	var errBuf bytes.Buffer
+	cmd.Stderr = &errBuf
+	if err := cmd.Run(); err == nil {
+		return true, nil
+	} else {
+		msg := strings.TrimSpace(errBuf.String())
+		lower := strings.ToLower(msg)
+		switch {
+		case strings.Contains(lower, "no server running"),
+			strings.Contains(lower, "can't find session"):
+			return false, nil
+		case msg != "":
+			return false, fmt.Errorf("tmux has-session: %s", msg)
+		default:
+			return false, fmt.Errorf("tmux has-session: %w", err)
+		}
+	}
+}
+
 // ListPanes returns panes across all sessions.
 func ListPanes() ([]Pane, error) {
 	if _, err := ensureTmux(); err != nil {
@@ -679,7 +704,15 @@ func EnsureSession(name string) error {
 	if err := exec.Command("tmux", "has-session", "-t", name).Run(); err == nil {
 		return nil
 	}
-	return exec.Command("tmux", "new-session", "-d", "-s", name).Run()
+	if err := exec.Command("tmux", "new-session", "-d", "-s", name).Run(); err != nil {
+		return err
+	}
+	if strings.HasPrefix(name, "arc-") {
+		if err := ApplyAgentSessionStyle(name, DefaultAgentSessionMeta()); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // Attach attaches to a session.
