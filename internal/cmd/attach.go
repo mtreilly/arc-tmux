@@ -182,6 +182,13 @@ Commands are executed via "sh -lc", so full shell strings are supported.`,
 			if err != nil {
 				return err
 			}
+			if isAgentSessionName(sess) {
+				if details, err := tmux.PaneDetailsForTarget(paneID); err == nil {
+					if err := tmux.ApplyAgentWindowStyle(details.Session, details.WindowIndex); err != nil {
+						return err
+					}
+				}
+			}
 
 			out := cmd.OutOrStdout()
 			switch {

@@ -99,7 +99,8 @@ func HasSession(name string) (bool, error) {
 	if _, err := ensureTmux(); err != nil {
 		return false, fmt.Errorf("tmux not found in PATH: %w", err)
 	}
-	cmd := exec.Command("tmux", "has-session", "-t", name)
+	target := exactSessionTarget(name)
+	cmd := exec.Command("tmux", "has-session", "-t", target)
 	var errBuf bytes.Buffer
 	cmd.Stderr = &errBuf
 	err := cmd.Run()
@@ -117,6 +118,13 @@ func HasSession(name string) (bool, error) {
 	default:
 		return false, fmt.Errorf("tmux has-session: %w", err)
 	}
+}
+
+func exactSessionTarget(name string) string {
+	if strings.HasPrefix(name, "=") {
+		return name
+	}
+	return "=" + name
 }
 
 // ListPanes returns panes across all sessions.
@@ -701,7 +709,9 @@ func EnsureSession(name string) error {
 	if _, err := ensureTmux(); err != nil {
 		return err
 	}
-	if err := exec.Command("tmux", "has-session", "-t", name).Run(); err == nil {
+	if exists, err := HasSession(name); err != nil {
+		return err
+	} else if exists {
 		return nil
 	}
 	if err := exec.Command("tmux", "new-session", "-d", "-s", name).Run(); err != nil {

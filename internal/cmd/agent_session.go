@@ -81,3 +81,7 @@ func applyAgentStyleIfNeeded(session string, shouldStyle bool) error {
 	meta := tmux.DefaultAgentSessionMeta()
 	return tmux.ApplyAgentSessionStyle(session, meta)
 }
+
+func isAgentSessionName(name string) bool {
+	return strings.HasPrefix(name, agentSessionPrefix)
+}
