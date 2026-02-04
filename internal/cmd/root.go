@@ -33,6 +33,7 @@ Common subcommands:
   stop      Interrupt then kill on timeout
   wait      Block until a pane quiets down
   kill      Safely kill a pane
+  ensure    Ensure session/window/pane exist
   attach    Attach to a session
   launch    Open a new pane/window
   windows   List windows for a session
@@ -66,6 +67,7 @@ Common subcommands:
 		newInterruptCmd(),
 		newEscapeCmd(),
 		newKillCmd(),
+		newEnsureCmd(),
 		newInspectCmd(),
 		newFollowCmd(),
 		newAttachCmd(),

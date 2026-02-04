@@ -70,6 +70,11 @@ func newRecipesCmd() *cobra.Command {
 func defaultRecipes() []recipe {
 	return []recipe{
 		{
+			Name:        "ensure-window-pane",
+			Description: "Ensure a window and named pane exist without duplication.",
+			Command:     "arc-tmux ensure \"npm run dev\" --session dev --window api --pane-title server --panes 2 --layout tiled",
+		},
+		{
 			Name:        "run-and-capture-json",
 			Description: "Run a command, wait idle, capture output and exit code in JSON.",
 			Command:     "arc-tmux run \"npm test\" --pane=@current --exit-code --exit-propagate --output json",

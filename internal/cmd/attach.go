@@ -135,6 +135,8 @@ func newCleanupCmd() *cobra.Command {
 func newLaunchCmd() *cobra.Command {
 	var split string
 	var session string
+	var cwd string
+	var envVars []string
 	var outputOpts output.OutputOptions
 
 	cmd := &cobra.Command{
@@ -148,6 +150,9 @@ Commands are executed via "sh -lc", so full shell strings are supported.`,
 		Example: `  # Split current tmux window
   arc-tmux launch "htop" --split v
 
+  # Start in a directory with env vars
+  arc-tmux launch --cwd /srv/app --env NODE_ENV=development
+
   # Outside tmux, create/open the managed session
   arc-tmux launch`,
 		Args: cobra.MaximumNArgs(1),
@@ -159,6 +164,11 @@ Commands are executed via "sh -lc", so full shell strings are supported.`,
 			if len(args) > 0 {
 				command = args[0]
 			}
+			envPairs, err := parseEnvVars(envVars)
+			if err != nil {
+				return newCodedError(errInvalidEnv, err.Error(), err)
+			}
+			command = buildRunCommand(command, strings.TrimSpace(cwd), envPairs)
 
 			sess := session
 			if !tmux.InTmux() && strings.TrimSpace(sess) == "" {
@@ -216,6 +226,8 @@ Commands are executed via "sh -lc", so full shell strings are supported.`,
 	outputOpts.AddOutputFlags(cmd, output.OutputTable)
 	cmd.Flags().StringVar(&split, "split", "", "Inside tmux: split direction (h|v)")
 	cmd.Flags().StringVar(&session, "session", "", "Managed session name when outside tmux")
+	cmd.Flags().StringVar(&cwd, "cwd", "", "Start the new pane/window in this working directory")
+	cmd.Flags().StringArrayVar(&envVars, "env", nil, "Set environment variables for the new pane (KEY=VAL). Repeatable.")
 
 	return cmd
 }

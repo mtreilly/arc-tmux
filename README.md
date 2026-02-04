@@ -9,8 +9,10 @@ arc-tmux sessions
 arc-tmux panes --session dev --window 2
 arc-tmux inspect --pane=dev:2.0
 arc-tmux follow --pane=dev:2.0 --lines 200
+arc-tmux launch "htop" --cwd /srv/app --env NODE_ENV=development
 arc-tmux locate --field command node
 arc-tmux monitor --pane=dev:2.0 --output json
+arc-tmux ensure "npm test" --session dev --window build
 arc-tmux signal --pane=dev:2.0 --signal TERM
 arc-tmux stop --pane=dev:2.0 --timeout 20
 ```
@@ -106,6 +108,7 @@ Use `--duration`/`--timeout` or `--once` to stop.
 When `--exit-code` is enabled, `run` emits a sentinel exit code and parses it into structured output.
 Use `--segment` to capture only the output produced by the command (using start/end markers),
 and `--exit-propagate` to return a non-zero exit status when the parsed exit code is non-zero.
+Use `--cwd` to run from a specific directory and `--env KEY=VAL` to set environment variables.
 
 ```json
 {
@@ -201,6 +204,8 @@ arc-tmux signal --pane=@current --signal TERM
   - `arc-tmux send --pane=dev:2.0 --key C-x --key C-c`
 - Locate panes by command/title/path:
   - `arc-tmux locate --field command node`
+ - Ensure a window/pane exists without duplication:
+  - `arc-tmux ensure "npm run dev" --session dev --window api --pane-title server --panes 2 --layout tiled`
 
 ## Integration tests
 

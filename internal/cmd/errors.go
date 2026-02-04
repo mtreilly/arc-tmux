@@ -41,4 +41,5 @@ const (
 	errNoTmuxClient      = "ERR_NOT_IN_TMUX"
 	errSignalUnsupported = "ERR_SIGNAL_UNSUPPORTED"
 	errCommandExit       = "ERR_COMMAND_EXIT"
+	errInvalidEnv        = "ERR_INVALID_ENV"
 )

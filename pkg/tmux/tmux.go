@@ -791,3 +791,65 @@ func Launch(managedSession string, cmdStr string, split string) (string, error) 
 	}
 	return strings.TrimSpace(string(out)), nil
 }
+
+// NewWindow creates a new window in a session and runs cmd. Returns the new pane formatted id.
+func NewWindow(session string, name string, cmdStr string) (string, error) {
+	if _, err := ensureTmux(); err != nil {
+		return "", err
+	}
+	format := "#{session_name}:#{window_index}.#{pane_index}"
+	args := []string{"new-window", "-t", session, "-P", "-F", format}
+	if strings.TrimSpace(name) != "" {
+		args = append(args, "-n", name)
+	}
+	if shellArgs := shellCommand(cmdStr); len(shellArgs) > 0 {
+		args = append(args, shellArgs...)
+	}
+	out, err := exec.Command("tmux", args...).Output()
+	if err != nil {
+		return "", fmt.Errorf("tmux new-window: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// SplitWindow splits a window (or pane target) and runs cmd. Returns the new pane formatted id.
+func SplitWindow(target string, split string, cmdStr string) (string, error) {
+	if _, err := ensureTmux(); err != nil {
+		return "", err
+	}
+	format := "#{session_name}:#{window_index}.#{pane_index}"
+	args := []string{"split-window", "-t", target, "-P", "-F", format}
+	if split == "h" {
+		args = append(args, "-h")
+	}
+	if split == "v" {
+		args = append(args, "-v")
+	}
+	if shellArgs := shellCommand(cmdStr); len(shellArgs) > 0 {
+		args = append(args, shellArgs...)
+	}
+	out, err := exec.Command("tmux", args...).Output()
+	if err != nil {
+		return "", fmt.Errorf("tmux split-window: %w", err)
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// SelectLayout applies a tmux layout to a window target (session:window).
+func SelectLayout(target string, layout string) error {
+	if _, err := ensureTmux(); err != nil {
+		return err
+	}
+	if strings.TrimSpace(layout) == "" {
+		return nil
+	}
+	return exec.Command("tmux", "select-layout", "-t", target, layout).Run()
+}
+
+// SetPaneTitle updates a pane title.
+func SetPaneTitle(target string, title string) error {
+	if _, err := ensureTmux(); err != nil {
+		return err
+	}
+	return exec.Command("tmux", "select-pane", "-t", target, "-T", title).Run()
+}

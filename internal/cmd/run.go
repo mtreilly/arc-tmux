@@ -26,6 +26,8 @@ func newRunCmd() *cobra.Command {
 	var exitTag string
 	var exitPropagate bool
 	var segment bool
+	var cwd string
+	var envVars []string
 	var outputOpts output.OutputOptions
 
 	cmd := &cobra.Command{
@@ -37,6 +39,9 @@ func newRunCmd() *cobra.Command {
 
   # Long-running lint with custom idle threshold
   arc-tmux run "make lint" --pane=fe:2.0 --idle=5 --timeout=600
+
+  # Run with cwd/env overrides
+  arc-tmux run "npm test" --pane=fe:2.0 --cwd /srv/app --env NODE_ENV=development
 
   # Capture output and exit code in JSON
   arc-tmux run "npm test" --pane=fe:2.0 --exit-code --output json`,
@@ -53,7 +58,13 @@ func newRunCmd() *cobra.Command {
 				return err
 			}
 
+			envPairs, err := parseEnvVars(envVars)
+			if err != nil {
+				return newCodedError(errInvalidEnv, err.Error(), err)
+			}
+
 			text := strings.Join(args, " ")
+			text = buildRunCommand(text, strings.TrimSpace(cwd), envPairs)
 			var startTag string
 			var endTag string
 			if exitCode || segment {
@@ -171,6 +182,8 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().StringVar(&exitTag, "exit-tag", "__ARC_TMUX_EXIT:", "Sentinel tag for exit code parsing")
 	cmd.Flags().BoolVar(&exitPropagate, "exit-propagate", false, "Return a non-zero exit when the parsed exit code is non-zero")
 	cmd.Flags().BoolVar(&segment, "segment", false, "Capture only output for this command by inserting sentinel markers (runs via sh -lc)")
+	cmd.Flags().StringVar(&cwd, "cwd", "", "Run the command from this working directory")
+	cmd.Flags().StringArrayVar(&envVars, "env", nil, "Set environment variables for the command (KEY=VAL). Repeatable.")
 	_ = cmd.MarkFlagRequired("pane")
 
 	return cmd
@@ -199,13 +212,6 @@ func wrapCommandForRun(command string, startTag string, endTag string, exitTag s
 	}
 	inner += fmt.Sprintf(" printf \"\\n%s\\n\"", endTag)
 	return "sh -lc " + shellQuoteSingle(inner)
-}
-
-func shellQuoteSingle(value string) string {
-	if value == "" {
-		return "''"
-	}
-	return "'" + strings.ReplaceAll(value, "'", `'"'"'`) + "'"
 }
 
 func extractRunWindow(output string, startTag string, endTag string, exitTag string, parseExit bool) (string, *int, bool, bool) {
